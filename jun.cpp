@@ -15,7 +15,7 @@
 //・逆張り建玉数チャージ方式。逆張り順張り廃止
 //・順張り張り直し
 //・トレーリングストップ&MACD利確
-//・三尊ポイント越えで逆張りエントリー★
+//・三尊ポイント越えで逆張りエントリー
 // 変数の宣言
 string Currency[10] = {"USDJPY"};
 int Period[10] = {1, 5, 30, 240, 1440};
@@ -25,6 +25,10 @@ double BuyContPrice = 1000;             // 逆張買中の最小価格
 double SellContPrice = 0;               // 逆張売中の最大価格
 double BuyFollowPrice = 0;              // 順張買中の最大価格
 double SellFollowPrice = 1000;          // 順張売中の最小価格
+double BuyContHD = 1000;                // 逆張買中の三尊最小価格
+double SellContHD = 0;                  // 逆張売中の三尊最大価格
+double BuyFollowHD = 0;                 // 順張買中の三尊最大価格
+double SellFollowHD = 1000;             // 順張売中の三尊最小価格
 int BuyPositionMode[10] = {};           // 買ポジションの状況（1順/0ポジションなし/-1逆/-2逆順）
 int SellPositionMode[10] = {};          // 売りポジションの状況（1順/0ポジションなし/-1逆/-2逆順）
 double BuyLots = 0;                     // 買いポジション数
