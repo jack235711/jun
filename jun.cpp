@@ -11,7 +11,6 @@
 // 分割：View→Edit layout
 // コメントアウト：Ctrl+/
 //+------------------------------------------------------------------+
-//・上位MACD下下で売買中止
 //・逆張り建玉数チャージ方式。逆張り順張り廃止
 //・順張り張り直し
 //・トレーリングストップ&MACD利確
@@ -39,8 +38,8 @@ double BuyProfitRate = 0;               // 買いポジション利益率
 double SellProfitRate = 0;              // 売りポジション利益率
 double LastBuyClosedPrice = 0;          // 買いポジションを閉じた時の価格
 double LastSellClosedPrice = 0;         // 売りポジションを閉じた時の価格
-double LastBuyLastBuyOrdersTotal = 0;   // 買いポジションを閉じた時の数量
-double LastSellLastBuyOrdersTotal = 0;  // 売りポジションを閉じた時の数量
+double LastBuyOrdersTotal = 0;          // 買いポジションを閉じた時の数量
+double LastSellOrdersTotal = 0;         // 売りポジションを閉じた時の数量
 double MaxBuyOrderLots = 0;             // 最大の同時ポジション数（Print用）
 
 struct tmp_st
@@ -255,7 +254,10 @@ void BuildOrder()
         && iLow("USDJPY", PERIOD_M1, 0) > iLow("USDJPY", PERIOD_M1, 1)
         && iHigh("USDJPY", PERIOD_M1, 1) > iHigh("USDJPY", PERIOD_M1, 2)
         && iLow("USDJPY", PERIOD_M1, 1) > iLow("USDJPY", PERIOD_M1, 2)
-        && st[0][0].MACD_Sig1[0] > 0 && st[0][0].MACD_Sig2[0] > 0)
+        && st[0][0].MACD_Sig1[0] > 0 && st[0][0].MACD_Sig2[0] > 0
+        && !(st[0][1].MACD_Sig1[0] < 0 && st[0][1].MACD_Sig2[0] < 0)
+        && !(st[0][2].MACD_Sig1[0] < 0 && st[0][2].MACD_Sig2[0] < 0)
+        )
         {
             if(iClose("USDJPY", PERIOD_M1, 0) < LastBuyClosedPrice){
                 BuildNumber = LastBuyOrdersTotal;
@@ -284,6 +286,8 @@ void BuildOrder()
         if (iClose("USDJPY", PERIOD_M1, 0) < BuyContPrice - PositionInterval() * MarketInfo("USDJPY", MODE_TICKSIZE)
         && iClose("USDJPY", PERIOD_M1, 0) < iLow("USDJPY", PERIOD_M1, 1)
         && st[0][0].MACD_Sig1[0] > 0 && st[0][0].MACD_Sig2[0] < 0
+        && !(st[0][1].MACD_Sig1[0] < 0 && st[0][1].MACD_Sig2[0] < 0)
+        && !(st[0][2].MACD_Sig1[0] < 0 && st[0][2].MACD_Sig2[0] < 0)
         )
         {
             BuildNumber = (BuyContPrice - iClose("USDJPY", PERIOD_M1, 0))/MarketInfo("USDJPY", MODE_TICKSIZE)/50;
@@ -313,6 +317,15 @@ void CloseOrder()
             BuyPositionMode[0] == 0;
         }
     }
+    // 逆張復帰照査
+    // if (BuyPositionMode[0] == -1)
+    // {
+    //     if (0.1 < BuyProfit)
+    //     {
+    //         CloseNumber = -1;
+    //         BuyPositionMode[0] == 0;
+    //     }
+    // }
 }
 
 // 売買実行
@@ -377,7 +390,7 @@ void OnDeinit() {}
 void OnTick()
 {
     // 下準備
-    //  Arrow();
+    // Arrow();
     TrendMACD();
     ManageParameter();
     PrintSet();
@@ -389,4 +402,3 @@ void OnTick()
     // トレード執行
     TradingExecution();
 }
-
