@@ -11,7 +11,6 @@
 // 分割：View→Edit layout
 // コメントアウト：Ctrl+/
 //+------------------------------------------------------------------+
-//・逆張り建玉数チャージ方式。逆張り順張り廃止
 //・全体包含の部分利益確定方式
 //・トレーリングストップ&MACD利確
 //・三尊ポイント越えで逆張りエントリー
@@ -28,8 +27,8 @@ double BuyContHD = 1000;                // 逆張買中の三尊最小価格
 double SellContHD = 0;                  // 逆張売中の三尊最大価格
 double BuyFollowHD = 0;                 // 順張買中の三尊最大価格
 double SellFollowHD = 1000;             // 順張売中の三尊最小価格
-int BuyPositionMode[10] = {};           // 買ポジションの状況（1順/0ポジションなし/-1逆/-2逆順）
-int SellPositionMode[10] = {};          // 売りポジションの状況（1順/0ポジションなし/-1逆/-2逆順）
+int BuyPositionMode[10] = {};           // 買ポジションの状況（1順/0ポジションなし/-1逆）
+int SellPositionMode[10] = {};          // 売りポジションの状況（1順/0ポジションなし/-1逆）
 double BuyLots = 0;                     // 買いポジション数
 double SellLots = 0;                    // 売りポジション数
 double BuyProfit = 0;                   // 買いポジション利益
@@ -41,6 +40,8 @@ double LastSellClosedPrice = 0;         // 売りポジションを閉じた時�
 double LastBuyOrdersTotal = 0;          // 買いポジションを閉じた時の数量
 double LastSellOrdersTotal = 0;         // 売りポジションを閉じた時の数量
 double MaxBuyOrderLots = 0;             // 最大の同時ポジション数（Print用）
+int BuyTempIndex[100] = {-1};             // 部分決済対象のポジションのインデックス
+double BuyTempProfit = 0;               // プラスポジションのみの利益
 
 struct tmp_st
 {
@@ -201,6 +202,8 @@ void ManageParameter()
     // 建玉数、利益管理
     for (int i = 0; i < OrdersTotal(); i++)
     {
+        BuyTempIndex[i] = -1;
+        BuyTempProfit = 0;
         if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES) == false)
             break;
         if (OrderType() == OP_BUY)
@@ -208,15 +211,21 @@ void ManageParameter()
             BuyLots += OrderLots();
             BuyProfit += OrderProfit();
             BuyProfitRate = BuyProfit / BuyLots;
+            if(OrderProfit() > 0){BuyTempIndex[i] = i; BuyTempProfit += OrderProfit();}
         }
         if(MaxBuyOrderLots < BuyLots){MaxBuyOrderLots = BuyLots;}
-        if (OrderType() == OP_SELL)
-        {
-            SellLots += OrderLots();
-            SellProfit += OrderProfit();
-            SellProfitRate = SellProfit / SellLots;
+    }
+    for (int i = 0; i < OrdersTotal(); i++){
+        if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES) == false)
+            break;
+        if (OrderType() == OP_BUY && OrderProfit() < 0){
+            if(BuyTempProfit + OrderProfit() > 0){
+                BuyTempIndex[i] = i;
+                BuyTempProfit = BuyTempProfit + OrderProfit();
+            }
         }
     }
+    
     // ポジションのモード管理
     BuyPositionMode[1] = BuyPositionMode[0];
     BuyPositionMode[0] = 10;
@@ -301,27 +310,27 @@ void CloseOrder()
         if (st[0][0].MACD_Sig1[0] < 0 && st[0][0].MACD_Sig2[0] < 0)
         {
             CloseNumber = -1;
-            BuyPositionMode[0] == 0;
+            BuyPositionMode[0] = 0;
         }
     }
-    // 順張終了買閉照査
-    if (BuyPositionMode[0] == 1)
+    // 薄利買閉照査
+    if (BuyPositionMode[0] == 1.5)
     {
         if (0.1 < BuyProfit && BuyProfit < 0.8)
         {
             CloseNumber = -1;
-            BuyPositionMode[0] == 0;
+            BuyPositionMode[0] = 0;
         }
     }
-    // 逆張復帰照査
-    // if (BuyPositionMode[0] == -1)
-    // {
-    //     if (0.1 < BuyProfit)
-    //     {
-    //         CloseNumber = -1;
-    //         BuyPositionMode[0] == 0;
-    //     }
-    // }
+    // 部分買閉照査
+    if (BuyPositionMode[0] == -1)
+    {
+        if (st[0][0].MACD_Sig1[0] < 0 && st[0][0].MACD_Sig2[0] < 0)
+        {
+            CloseNumber = -2;
+            BuyPositionMode[0] = -1;
+        }
+    }
 }
 
 // 売買実行
@@ -368,6 +377,24 @@ void TradingExecution()
             if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES) == false)
                 break;
             if (OrderType() == OP_BUY)
+            {
+                bool Closed = OrderClose(OrderTicket(), OrderLots(), OrderClosePrice(), 3, clrNONE);
+            }
+        }
+        BuyFollowPrice = 0;
+        BuyContPrice = 1000;
+        LastBuyClosedPrice = iClose("USDJPY", PERIOD_M1, 0);
+        LastBuyOrdersTotal = OrdersTotal();
+    }
+    if (CloseNumber == -2)
+    {
+        for (int i = 0; i < OrdersTotal() + 3; i++)
+        {
+            if(BuyTempIndex[i] = -1)
+                continue;
+            else if (OrderSelect(BuyTempIndex[i], SELECT_BY_POS, MODE_TRADES) == false)
+                break;
+            else if (OrderType() == OP_BUY)
             {
                 bool Closed = OrderClose(OrderTicket(), OrderLots(), OrderClosePrice(), 3, clrNONE);
             }
