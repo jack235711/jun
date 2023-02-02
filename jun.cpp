@@ -12,7 +12,7 @@
 // コメントアウト：Ctrl+/
 //+------------------------------------------------------------------+
 //・逆張り建玉数チャージ方式。逆張り順張り廃止
-//・順張り張り直し
+//・全体包含の部分利益確定方式
 //・トレーリングストップ&MACD利確
 //・三尊ポイント越えで逆張りエントリー
 // 変数の宣言
@@ -250,14 +250,12 @@ void BuildOrder()
     // ポジションスタート
     if (BuyPositionMode[0] == 0)
     {
-        if (iHigh("USDJPY", PERIOD_M1, 0) > iHigh("USDJPY", PERIOD_M1, 1)
+        if (
+        iHigh("USDJPY", PERIOD_M1, 0) > iHigh("USDJPY", PERIOD_M1, 1)
         && iLow("USDJPY", PERIOD_M1, 0) > iLow("USDJPY", PERIOD_M1, 1)
         && iHigh("USDJPY", PERIOD_M1, 1) > iHigh("USDJPY", PERIOD_M1, 2)
         && iLow("USDJPY", PERIOD_M1, 1) > iLow("USDJPY", PERIOD_M1, 2)
-        && st[0][0].MACD_Sig1[0] > 0 && st[0][0].MACD_Sig2[0] > 0
-        && !(st[0][1].MACD_Sig1[0] < 0 && st[0][1].MACD_Sig2[0] < 0)
-        && !(st[0][2].MACD_Sig1[0] < 0 && st[0][2].MACD_Sig2[0] < 0)
-        )
+        && st[0][0].MACD_Sig1[0] > 0 && st[0][0].MACD_Sig2[0] > 0)
         {
             if(iClose("USDJPY", PERIOD_M1, 0) < LastBuyClosedPrice){
                 BuildNumber = LastBuyOrdersTotal;
@@ -286,8 +284,6 @@ void BuildOrder()
         if (iClose("USDJPY", PERIOD_M1, 0) < BuyContPrice - PositionInterval() * MarketInfo("USDJPY", MODE_TICKSIZE)
         && iClose("USDJPY", PERIOD_M1, 0) < iLow("USDJPY", PERIOD_M1, 1)
         && st[0][0].MACD_Sig1[0] > 0 && st[0][0].MACD_Sig2[0] < 0
-        && !(st[0][1].MACD_Sig1[0] < 0 && st[0][1].MACD_Sig2[0] < 0)
-        && !(st[0][2].MACD_Sig1[0] < 0 && st[0][2].MACD_Sig2[0] < 0)
         )
         {
             BuildNumber = (BuyContPrice - iClose("USDJPY", PERIOD_M1, 0))/MarketInfo("USDJPY", MODE_TICKSIZE)/50;
