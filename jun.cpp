@@ -78,20 +78,22 @@ void TrendMACD()
 }
 //逆張間隔判断
 int PositionInterval(){
-    if(BuyPositionMode[0] == -1){
-        if(st[0][1].MACD_Sig1[0] > 0 && st[0][1].MACD_Sig2[0] > 0){    
-            return 50;
+    int r = 0;
+    for(int i=0;i<6;i++){
+        if(st[0][i].MACD_Sig1[0] > 0){    
+            r += 10;
         }
-        else if(st[0][1].MACD_Sig1[0] < 0 && st[0][1].MACD_Sig2[0] < 0){    
-            return 10000;
+        if(st[0][i].MACD_Sig2[0] > 0){    
+            r += 10;
         }
-        else{
-            return 150;
+        if(st[0][i].MACD_Sig1[0] < 0){    
+            r -= 10;
+        }
+        if(st[0][i].MACD_Sig2[0] < 0){    
+            r -= 10;
         }
     }
-    else{
-        return 1000000;
-    }
+    return r;
 }
 // 矢印判定
 void Arrow()
@@ -213,6 +215,10 @@ void BuildOrder()
         && iLow("USDJPY", PERIOD_M1, 0) > iLow("USDJPY", PERIOD_M1, 1)
         && iHigh("USDJPY", PERIOD_M1, 1) < iHigh("USDJPY", PERIOD_M1, 2)
         && iLow("USDJPY", PERIOD_M1, 1) < iLow("USDJPY", PERIOD_M1, 2)
+        && iHigh("USDJPY", PERIOD_M1, 2) < iHigh("USDJPY", PERIOD_M1, 3)
+        && iLow("USDJPY", PERIOD_M1, 2) < iLow("USDJPY", PERIOD_M1, 3)
+        && iHigh("USDJPY", PERIOD_M1, 3) < iHigh("USDJPY", PERIOD_M1, 4)
+        && iLow("USDJPY", PERIOD_M1, 3) < iLow("USDJPY", PERIOD_M1, 4)
         //&& st[0][0].MACD_Sig1[0] > 0 && st[0][0].MACD_Sig2[0] > 0
         )
         {
@@ -228,6 +234,10 @@ void BuildOrder()
         && iLow("USDJPY", PERIOD_M1, 0) > iLow("USDJPY", PERIOD_M1, 1)
         && iHigh("USDJPY", PERIOD_M1, 1) < iHigh("USDJPY", PERIOD_M1, 2)
         && iLow("USDJPY", PERIOD_M1, 1) < iLow("USDJPY", PERIOD_M1, 2)
+        && iHigh("USDJPY", PERIOD_M1, 2) < iHigh("USDJPY", PERIOD_M1, 3)
+        && iLow("USDJPY", PERIOD_M1, 2) < iLow("USDJPY", PERIOD_M1, 3)
+        && iHigh("USDJPY", PERIOD_M1, 3) < iHigh("USDJPY", PERIOD_M1, 4)
+        && iLow("USDJPY", PERIOD_M1, 3) < iLow("USDJPY", PERIOD_M1, 4)
         //&& st[0][0].MACD_Sig1[0] > 0 && st[0][0].MACD_Sig2[0] < 0
         )
         {
