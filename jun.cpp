@@ -51,9 +51,9 @@ tmp_st st[10][10];
 void TrendMACD()
 {
     // 判断材料算出
-    for (int i = 0; i < 6; i++) //通貨
+    for (int i = 0; i < 7; i++) //通貨
     {
-        for (int j = 0; j < 6; j++) //時間軸
+        for (int j = 0; j < 8; j++) //時間軸
         {
             for (int k = 0; k < 19; k++) //バー
             {
@@ -77,23 +77,25 @@ void TrendMACD()
     }
 }
 //逆張間隔判断
-int PositionInterval(){
-    int r = 0;
-    for(int i=0;i<6;i++){
+double PositionInterval(){
+    int x=0; //変数
+    int b = 14; //項目の合計
+    
+    for(int i=0;i<7;i++){
         if(st[0][i].MACD_Sig1[0] > 0){    
-            r -= 10;
+            x--;
+        }
+        else if(st[0][i].MACD_Sig1[0] < 0){    
+            x++;
         }
         if(st[0][i].MACD_Sig2[0] > 0){    
-            r -= 10;
+            x--;
         }
-        if(st[0][i].MACD_Sig1[0] < 0){    
-            r += 10;
-        }
-        if(st[0][i].MACD_Sig2[0] < 0){    
-            r += 10;
+        else if(st[0][i].MACD_Sig2[0] < 0){    
+            x++;
         }
     }
-    if(r<0){r=0;}
+    double r = 10*100^(x/b);
     return r;
 }
 // 矢印判定
@@ -168,7 +170,7 @@ void Arrow()
 // 表示
 void PrintSet()
 {
-    //Print("MaxBuyOrderLots: ", MaxBuyOrderLots,"    BuyLots: ", BuyLots,"    PositionInterval: ",PositionInterval());
+    Print("MaxBuyOrderLots: ", MaxBuyOrderLots,"    BuyLots: ", BuyLots,"    PositionInterval: ",PositionInterval());
 }
 // ポジション&利益管理
 void ManageParameter()
@@ -258,7 +260,6 @@ void CloseOrder()
         && OrderProfit() > 0.5)
         {
             CloseNumber = -2;
-            BuyPositionMode[0] = -1;
         }
     }
 }
