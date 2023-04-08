@@ -20,25 +20,15 @@ int Period[10] = {1, 5, 30, 240, 1440};
 int BuildNumber = 0;                    // 新建オーダー数（プラス数で買い、マイナス数で売り）
 int CloseNumber = 0;                    // 建閉オーダー数（プラス数で買い、マイナス数で売り）
 double BuyContPrice = 1000;             // 逆張買中の最小価格
-double SellContPrice = 0;               // 逆張売中の最大価格
 double BuyFollowPrice = 0;              // 順張買中の最大価格
-double SellFollowPrice = 1000;          // 順張売中の最小価格
 double BuyContHD = 1000;                // 逆張買中の三尊最小価格
-double SellContHD = 0;                  // 逆張売中の三尊最大価格
 double BuyFollowHD = 0;                 // 順張買中の三尊最大価格
-double SellFollowHD = 1000;             // 順張売中の三尊最小価格
-int BuyPositionMode[10] = {};           // 買ポジションの状況（1順/0ポジションなし/-1逆）
-int SellPositionMode[10] = {};          // 売りポジションの状況（1順/0ポジションなし/-1逆）
+int BuyPositionMode[10] = {};           // 買ポジションの状況（0ポジションなし/-1逆）
 double BuyLots = 0;                     // 買いポジション数
-double SellLots = 0;                    // 売りポジション数
 double BuyProfit = 0;                   // 買いポジション利益
-double SellProfit = 0;                  // 売りポジション利益
 double BuyProfitRate = 0;               // 買いポジション利益率
-double SellProfitRate = 0;              // 売りポジション利益率
 double LastBuyClosedPrice = 0;          // 買いポジションを閉じた時の価格
-double LastSellClosedPrice = 0;         // 売りポジションを閉じた時の価格
 double LastBuyOrdersTotal = 0;          // 買いポジションを閉じた時の数量
-double LastSellOrdersTotal = 0;         // 売りポジションを閉じた時の数量
 double MaxBuyOrderLots = 0;             // 最大の同時ポジション数（Print用）
 int BuyTempIndex[100] = {};             // 部分決済対象のポジションのインデックス
 double BuyTempProfit = 0;               // プラスポジションのみの利益
@@ -188,7 +178,7 @@ void Arrow()
 // 表示
 void PrintSet()
 {
-    Print("MaxBuyOrderLots: ", MaxBuyOrderLots);
+    //Print("MaxBuyOrderLots: ", MaxBuyOrderLots);
 }
 // ポジション&利益管理
 void ManageParameter()
@@ -196,8 +186,6 @@ void ManageParameter()
     // 初期化
     BuyLots = 0;
     BuyProfit = 0;
-    SellLots = 0;
-    SellProfit = 0;
     for(int i=0;i<100;i++){BuyTempIndex[i] = -1; }
     BuyTempProfit = 0;
 
@@ -233,21 +221,6 @@ void ManageParameter()
     { // ポジションなし
         BuyPositionMode[0] = 0;
     }
-    else if (BuyProfit > 1.5)
-    { // 順張り
-        BuyPositionMode[0] = 1;
-    }
-    else if ((BuyPositionMode[1] == 1 && BuyPositionMode[0] == 10) || BuyPositionMode[1] == 1.5)
-    { // 順張り終了
-        if (BuyProfit < 0)
-        {
-            BuyPositionMode[0] = -1;
-        }
-        else
-        {
-            BuyPositionMode[0] = 1.5;
-        }
-    }
     else
     { // 逆張り
         BuyPositionMode[0] = -1;
@@ -276,17 +249,6 @@ void BuildOrder()
             BuyContPrice = iClose("USDJPY", PERIOD_M1, 0);
         }
     }
-    // 順張リチャージ照査
-    else if (BuyPositionMode[0] == 1)
-    {
-    //     if (iClose("USDJPY", PERIOD_M1, 0) > BuyFollowPrice + 10 * MarketInfo("USDJPY", MODE_TICKSIZE)
-    //     && iClose("USDJPY", PERIOD_M1, 0) < iLow("USDJPY", PERIOD_M1, 1)
-    //     && st[0][0].MACD_Sig1[0] > 0 && st[0][0].MACD_Sig2[0] < 0)
-    //     {
-    //         BuildNumber = 1;
-    //         BuyFollowPrice = iClose("USDJPY", PERIOD_M1, 0);
-    //     }
-    }
     // 逆張チャージ照査
     else if (BuyPositionMode[0] == -1)
     {
@@ -304,33 +266,15 @@ void BuildOrder()
 // 買閉め条件・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
 void CloseOrder()
 {
-    // 順張買閉照査
-    // if (BuyPositionMode[0] == 1)
-    // {
-    //     if (st[0][0].MACD_Sig1[0] < 0 && st[0][0].MACD_Sig2[0] < 0)
-    //     {
-    //         CloseNumber = -1;
-    //         BuyPositionMode[0] = 0;
-    //     }
-    // }
-    // 薄利買閉照査
-    // if (BuyPositionMode[0] == 1.5)
-    // {
-    //     if (0.1 < BuyProfit && BuyProfit < 0.8)
-    //     {
-    //         CloseNumber = -1;
-    //         BuyPositionMode[0] = 0;
-    //     }
-    // }
     // 部分買閉照査
-    // if (BuyPositionMode[0] == -1)
-    // {
+    if (BuyPositionMode[0] == -1)
+    {
         if (st[0][0].MACD_Sig1[0] < 0 && st[0][0].MACD_Sig2[0] < 0)
         {
             CloseNumber = -2;
             BuyPositionMode[0] = -1;
         }
-    // }
+    }
 }
 
 // 売買実行
@@ -352,40 +296,24 @@ void TradingExecution()
             }
         }
     }
-    // ショート建て
-    if (BuildNumber < 0)
-    {
-        BuildNumber = BuildNumber * (-1);
-        for (int i = BuildNumber; i < 0; i++)
-        {
-            while (Ticket < 0)
-            {
-                Ticket = OrderSend(Currency[0], OP_SELL, 0.01, MarketInfo(Currency[0], MODE_BID), 3, 0, 0, "Sell", 0, 0, Blue);
-                if (Ticket < 0)
-                {
-                    Print("OrderSend failed with error #", GetLastError());
-                }
-            }
-        }
-    }
     BuildNumber = 0;
     // ロング閉じ
-    if (CloseNumber == -1)
-    {
-        for (int i = 0; i < OrdersTotal() + 3; i++)
-        {
-            if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES) == false)
-                break;
-            if (OrderType() == OP_BUY)
-            {
-                bool Closed = OrderClose(OrderTicket(), OrderLots(), OrderClosePrice(), 3, clrNONE);
-            }
-        }
-        BuyFollowPrice = 0;
-        BuyContPrice = 1000;
-        LastBuyClosedPrice = iClose("USDJPY", PERIOD_M1, 0);
-        LastBuyOrdersTotal = OrdersTotal();
-    }
+    // if (CloseNumber == -1)
+    // {
+    //     for (int i = 0; i < OrdersTotal() + 3; i++)
+    //     {
+    //         if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES) == false)
+    //             break;
+    //         if (OrderType() == OP_BUY)
+    //         {
+    //             bool Closed = OrderClose(OrderTicket(), OrderLots(), OrderClosePrice(), 3, clrNONE);
+    //         }
+    //     }
+    //     BuyFollowPrice = 0;
+    //     BuyContPrice = 1000;
+    //     LastBuyClosedPrice = iClose("USDJPY", PERIOD_M1, 0);
+    //     LastBuyOrdersTotal = OrdersTotal();
+    // }
     if (CloseNumber == -2)
     {
         for (int i = 0; i < OrdersTotal() + 3; i++)
