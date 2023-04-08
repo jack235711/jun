@@ -16,7 +16,7 @@
 //・三尊ポイント越えで逆張りエントリー
 // 変数の宣言
 string Currency[10] = {"USDJPY"};
-int Period[10] = {1, 5, 30, 240, 1440};
+int Period[10] = {1, 5, 15, 30, 60, 240, 1440};
 int BuildNumber = 0;                    // 新建オーダー数（プラス数で買い、マイナス数で売り）
 int CloseNumber = 0;                    // 建閉オーダー数（プラス数で買い、マイナス数で売り）
 double BuyContPrice = 1000;             // 逆張買中の最小価格
@@ -51,11 +51,11 @@ tmp_st st[10][10];
 void TrendMACD()
 {
     // 判断材料算出
-    for (int i = 0; i < 6; i++)
+    for (int i = 0; i < 6; i++) //通貨
     {
-        for (int j = 0; j < 5; j++)
+        for (int j = 0; j < 6; j++) //時間軸
         {
-            for (int k = 0; k < 19; k++)
+            for (int k = 0; k < 19; k++) //バー
             {
                 // MACD
                 st[i][j].MACD1[k] = iMACD(Currency[i], Period[j], 5, 20, 3, PRICE_CLOSE, 0, k);
@@ -213,10 +213,6 @@ void BuildOrder()
         && iLow("USDJPY", PERIOD_M1, 0) > iLow("USDJPY", PERIOD_M1, 1)
         && iHigh("USDJPY", PERIOD_M1, 1) < iHigh("USDJPY", PERIOD_M1, 2)
         && iLow("USDJPY", PERIOD_M1, 1) < iLow("USDJPY", PERIOD_M1, 2)
-        && iHigh("USDJPY", PERIOD_M1, 2) < iHigh("USDJPY", PERIOD_M1, 3)
-        && iLow("USDJPY", PERIOD_M1, 2) < iLow("USDJPY", PERIOD_M1, 3)
-        && iHigh("USDJPY", PERIOD_M1, 3) < iHigh("USDJPY", PERIOD_M1, 4)
-        && iLow("USDJPY", PERIOD_M1, 3) < iLow("USDJPY", PERIOD_M1, 4)
         //&& st[0][0].MACD_Sig1[0] > 0 && st[0][0].MACD_Sig2[0] > 0
         )
         {
@@ -232,10 +228,6 @@ void BuildOrder()
         && iLow("USDJPY", PERIOD_M1, 0) > iLow("USDJPY", PERIOD_M1, 1)
         && iHigh("USDJPY", PERIOD_M1, 1) < iHigh("USDJPY", PERIOD_M1, 2)
         && iLow("USDJPY", PERIOD_M1, 1) < iLow("USDJPY", PERIOD_M1, 2)
-        && iHigh("USDJPY", PERIOD_M1, 2) < iHigh("USDJPY", PERIOD_M1, 3)
-        && iLow("USDJPY", PERIOD_M1, 2) < iLow("USDJPY", PERIOD_M1, 3)
-        && iHigh("USDJPY", PERIOD_M1, 3) < iHigh("USDJPY", PERIOD_M1, 4)
-        && iLow("USDJPY", PERIOD_M1, 3) < iLow("USDJPY", PERIOD_M1, 4)
         //&& st[0][0].MACD_Sig1[0] > 0 && st[0][0].MACD_Sig2[0] < 0
         )
         {
