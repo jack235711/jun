@@ -81,18 +81,19 @@ int PositionInterval(){
     int r = 0;
     for(int i=0;i<6;i++){
         if(st[0][i].MACD_Sig1[0] > 0){    
-            r += 10;
+            r -= 10;
         }
         if(st[0][i].MACD_Sig2[0] > 0){    
-            r += 10;
+            r -= 10;
         }
         if(st[0][i].MACD_Sig1[0] < 0){    
-            r -= 10;
+            r += 10;
         }
         if(st[0][i].MACD_Sig2[0] < 0){    
-            r -= 10;
+            r += 10;
         }
     }
+    if(r<0){r=0;}
     return r;
 }
 // 矢印判定
@@ -167,7 +168,7 @@ void Arrow()
 // 表示
 void PrintSet()
 {
-    //Print("MaxBuyOrderLots: ", MaxBuyOrderLots,"    BuyLots: ", BuyLots);
+    //Print("MaxBuyOrderLots: ", MaxBuyOrderLots,"    BuyLots: ", BuyLots,"    PositionInterval: ",PositionInterval());
 }
 // ポジション&利益管理
 void ManageParameter()
