@@ -21,8 +21,12 @@ double BuyContPrice = 1000;             // 逆張買中の最小価格
 int BuyPositionMode[10] = {};           // 買ポジションの状況（0ポジションなし/-1逆）
 double BuyLots = 0;                     // 買いポジション数
 double BuyProfit = 0;                   // 買いポジション利益
-double MaxBuyLots = 0;             // 最大の同時ポジション数（Print用）
+double MaxBuyLots = 0;                  // 最大の同時ポジション数（Print用）
 int BuyContPriceTicket = 0;             // 逆張買中の最小価格のチケット番号
+int BuyTempIndex[100] = {};             // 部分決済対象のポジションのインデックス
+double BuyTempProfit = 0;               // プラスポジションのみの利益
+double TripleTop = 0;                   // 三尊天井
+double TripleBottom = 0;                // 逆三尊
 
 struct tmp_st
 {
@@ -74,10 +78,36 @@ void TrendMACD()
         }
     }
 }
+//三尊判定
+void TripleMountain()
+{
+    if(iHigh("USDJPY", PERIOD_M1, 0) > iHigh("USDJPY", PERIOD_M1, 1)
+    && iLow("USDJPY", PERIOD_M1, 0) > iLow("USDJPY", PERIOD_M1, 1)
+    && iHigh("USDJPY", PERIOD_M1, 1) > iHigh("USDJPY", PERIOD_M1, 2)
+    && iLow("USDJPY", PERIOD_M1, 1) > iLow("USDJPY", PERIOD_M1, 2)
+    && iHigh("USDJPY", PERIOD_M1, 2) < iHigh("USDJPY", PERIOD_M1, 3)
+    && iLow("USDJPY", PERIOD_M1, 2) < iLow("USDJPY", PERIOD_M1, 3)
+    && iHigh("USDJPY", PERIOD_M1, 3) < iHigh("USDJPY", PERIOD_M1, 4)
+    && iLow("USDJPY", PERIOD_M1, 3) < iLow("USDJPY", PERIOD_M1, 4)
+    {
+        TripleBottom = iLow("USDJPY", PERIOD_M1, 2);
+    }
+    if(iHigh("USDJPY", PERIOD_M1, 0) < iHigh("USDJPY", PERIOD_M1, 1)
+    && iLow("USDJPY", PERIOD_M1, 0) < iLow("USDJPY", PERIOD_M1, 1)
+    && iHigh("USDJPY", PERIOD_M1, 1) < iHigh("USDJPY", PERIOD_M1, 2)
+    && iLow("USDJPY", PERIOD_M1, 1) < iLow("USDJPY", PERIOD_M1, 2)
+    && iHigh("USDJPY", PERIOD_M1, 2) > iHigh("USDJPY", PERIOD_M1, 3)
+    && iLow("USDJPY", PERIOD_M1, 2) > iLow("USDJPY", PERIOD_M1, 3)
+    && iHigh("USDJPY", PERIOD_M1, 3) > iHigh("USDJPY", PERIOD_M1, 4)
+    && iLow("USDJPY", PERIOD_M1, 3) > iLow("USDJPY", PERIOD_M1, 4)
+    {
+        TripleTop = iHigh("USDJPY", PERIOD_M1, 2);
+    }
+}
 //逆張間隔判断
 double PositionInterval(){
     double x=0; //変数
-    double b = 14; //項目の合計
+    double b = 7; //項目の合計
     
     for(int i=0;i<7;i++){
         if(st[0][i].MACD_Sig1[0] > 0){    
@@ -89,11 +119,11 @@ double PositionInterval(){
         if(st[0][i].MACD_Sig2[0] > 0){    
             x--;
         }
-        else if(st[0][i].MACD_Sig2[0] < 0){    
+        else if(st[0][i].MACD_Sig2[0] < 0){
             x++;
         }
     }
-    double r = NormalizeDouble(10*MathPow(100,(x/b)), 3);
+    double r = NormalizeDouble(OrdersTotal()*50 + MathPow(10000,(x/b)), 3) * MarketInfo("USDJPY", MODE_TICKSIZE);
     return r;
 }
 // 矢印判定
@@ -168,7 +198,7 @@ void Arrow()
 // 表示
 void PrintSet()
 {
-    Print("MaxBuyLots: ", MaxBuyLots,"    BuyLots: ", BuyLots,"    PositionInterval: ",PositionInterval());
+    Print("MaxBuyLots: ", MaxBuyLots,"    BuyLots: ", BuyLots,"    PositionInterval: ",NormalizeDouble(PositionInterval(), 2),"    NowInterval: ", NormalizeDouble(BuyContPrice - iClose("USDJPY", PERIOD_M1, 0), 2));
 }
 // ポジション&利益管理
 void ManageParameter()
@@ -177,6 +207,8 @@ void ManageParameter()
     BuyLots = 0;
     BuyProfit = 0;
     BuyContPrice = 10000;
+    for(int i=0;i<100;i++){BuyTempIndex[i] = -1; }
+    BuyTempProfit = 0;
 
     // 建玉数、利益管理
     for (int i = 0; i < OrdersTotal(); i++)
@@ -187,12 +219,23 @@ void ManageParameter()
         {
             BuyLots += OrderLots();
             BuyProfit += OrderProfit();
+            if(OrderProfit() > 0){BuyTempIndex[i] = i; BuyTempProfit += OrderProfit();}
         }
         if(MaxBuyLots < BuyLots){MaxBuyLots = BuyLots;}
         if(BuyContPrice > OrderOpenPrice())
         {
             BuyContPrice = OrderOpenPrice();
             BuyContPriceTicket = OrderTicket();
+        }
+    }
+    for (int i = 0; i < OrdersTotal(); i++){
+        if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES) == false)
+            break;
+        if (OrderType() == OP_BUY && OrderProfit() < 0){
+            if(BuyTempProfit + OrderProfit() > 1){
+                BuyTempIndex[i] = i;
+                BuyTempProfit = BuyTempProfit + OrderProfit();
+            }
         }
     }
     
@@ -202,7 +245,7 @@ void ManageParameter()
         BuyPositionMode[0] = 0;
     }
     else
-    { // 逆張り
+    { // ポジションあり
         BuyPositionMode[0] = -1;
     }
 }
@@ -224,11 +267,27 @@ void BuildOrder()
         {
             BuildNumber = 1;
         }
+        
     }
-    // 逆張チャージ照査
     else if (BuyPositionMode[0] == -1)
     {
-        if (iClose("USDJPY", PERIOD_M1, 0) < BuyContPrice - PositionInterval() * MarketInfo("USDJPY", MODE_TICKSIZE)
+        //順張チャージ照査
+        if (BuyProfit > 0.1 * OrdersTotal()
+        && iClose("USDJPY", PERIOD_M1, 0) < iHigh("USDJPY", PERIOD_M1, 1)
+        && iHigh("USDJPY", PERIOD_M1, 0) > iHigh("USDJPY", PERIOD_M1, 1)
+        && iLow("USDJPY", PERIOD_M1, 0) > iLow("USDJPY", PERIOD_M1, 1)
+        && iHigh("USDJPY", PERIOD_M1, 1) < iHigh("USDJPY", PERIOD_M1, 2)
+        && iLow("USDJPY", PERIOD_M1, 1) < iLow("USDJPY", PERIOD_M1, 2)
+        && iHigh("USDJPY", PERIOD_M1, 2) < iHigh("USDJPY", PERIOD_M1, 3)
+        && iLow("USDJPY", PERIOD_M1, 2) < iLow("USDJPY", PERIOD_M1, 3)
+        && iHigh("USDJPY", PERIOD_M1, 3) < iHigh("USDJPY", PERIOD_M1, 4)
+        && iLow("USDJPY", PERIOD_M1, 3) < iLow("USDJPY", PERIOD_M1, 4)
+        )
+        {
+            BuildNumber = 1;
+        }
+        //逆張チャージ照査
+        else if (iClose("USDJPY", PERIOD_M1, 0) < BuyContPrice - PositionInterval()
         && iClose("USDJPY", PERIOD_M1, 0) < iHigh("USDJPY", PERIOD_M1, 1)
         && iHigh("USDJPY", PERIOD_M1, 0) > iHigh("USDJPY", PERIOD_M1, 1)
         && iLow("USDJPY", PERIOD_M1, 0) > iLow("USDJPY", PERIOD_M1, 1)
@@ -255,7 +314,7 @@ void CloseOrder()
         if (st[0][0].MACD_Sig1[0] < 0 && st[0][0].MACD_Sig2[0] < 0
         && OrderProfit() > 0.5)
         {
-            CloseNumber = -2;
+            CloseNumber = -1;
         }
     }
 }
@@ -281,10 +340,18 @@ void TradingExecution()
     }
     BuildNumber = 0;
     // ロング閉じ
-    if (CloseNumber == -2)
-    {
-        OrderSelect(BuyContPriceTicket, SELECT_BY_TICKET, MODE_TRADES);
-        bool Closed = OrderClose(OrderTicket(), OrderLots(), OrderClosePrice(), 3, clrNONE);
+    if(CloseNumber == -1){
+        for (int i = 0; i < OrdersTotal() + 3; i++)
+        { 
+            if(BuyTempIndex[i] == -1)
+                {continue;}
+            else if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES) == false)
+                {break;}
+            else if (OrderType() == OP_BUY)
+            {
+                bool Closed = OrderClose(OrderTicket(), OrderLots(), OrderClosePrice(), 3, clrNONE);
+            }
+        }
     }
     CloseNumber = 0;
 }
@@ -297,6 +364,7 @@ void OnTick()
     // 下準備
     // Arrow();
     TrendMACD();
+    TripleMountain();
     ManageParameter();
     PrintSet();
 
