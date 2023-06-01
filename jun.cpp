@@ -254,9 +254,10 @@ void BuildOrder()
     if (BuyPositionMode[0] == 0)
     {
         if (iOpen("USDJPY", PERIOD_M1, 1) > iClose("USDJPY", PERIOD_M1, 1)
-        && (iOpen("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) 
-        + iHigh("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1))
+        && (iClose("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) 
+        + iHigh("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1))
         < (iOpen("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1))
+        && iClose("USDJPY", PERIOD_M1, 0) < iClose("USDJPY", PERIOD_M1, 1)
         && MACD_Score < -3)
         {
             BuildNumber = 1;
@@ -269,9 +270,10 @@ void BuildOrder()
         //逆張チャージ照査
         if (iClose("USDJPY", PERIOD_M1, 0) < BuyContPrice - OpenInterval()
         && iOpen("USDJPY", PERIOD_M1, 1) > iClose("USDJPY", PERIOD_M1, 1)
-        && (iOpen("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) 
-        + iHigh("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1))
+        && (iClose("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) 
+        + iHigh("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1))
         < (iOpen("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1))
+        && iClose("USDJPY", PERIOD_M1, 0) < iClose("USDJPY", PERIOD_M1, 1)
         && MACD_Score < -3)
         {
             BuildNumber = 1;
@@ -286,9 +288,11 @@ void CloseOrder()
     {
         // 最小買閉照査
         if (BuyContPriceProfit > CloseInterval()
-        && iOpen("USDJPY", PERIOD_M1, 1) > iClose("USDJPY", PERIOD_M1, 1)
-        && iOpen("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1)  
-        <= iHigh("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1)
+        && iOpen("USDJPY", PERIOD_M1, 1) < iClose("USDJPY", PERIOD_M1, 1)
+        && (iOpen("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) 
+        + iHigh("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1))
+        < (iClose("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1))
+        && iClose("USDJPY", PERIOD_M1, 0) > iClose("USDJPY", PERIOD_M1, 1)
         && MACD_Score > 0)
         {
             CloseNumber = -1;
@@ -296,9 +300,11 @@ void CloseOrder()
         }
         // 全買閉照査
         if (BuyProfit + ProfitPot > 2*CloseInterval()
-        && iOpen("USDJPY", PERIOD_M1, 1) > iClose("USDJPY", PERIOD_M1, 1)
-        && iOpen("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1)  
-        <= iHigh("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1)
+        && iOpen("USDJPY", PERIOD_M1, 1) < iClose("USDJPY", PERIOD_M1, 1)
+        && (iOpen("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) 
+        + iHigh("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1))
+        < (iClose("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1))
+        && iClose("USDJPY", PERIOD_M1, 0) > iClose("USDJPY", PERIOD_M1, 1)
         && MACD_Score > 0)
         {
             CloseNumber = -2;
