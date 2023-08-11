@@ -12,6 +12,7 @@
 // コメントアウト：Ctrl+/
 //+------------------------------------------------------------------+
 //・1か月1単位で$100の利益
+//逆張りを支えるMAを1分足の期間を延ばしてポジションが増えた時の上位のMAも表現する
 // 変数の宣言
 string Currency[10] = {"USDJPY"};
 int Period[10] = {1, 5, 15, 30, 60, 240, 1440};
@@ -27,7 +28,7 @@ double BuyProfit = 0;                   // 買いポジション利益
 double MaxBuyLots = 0;                  // 最大の同時ポジション数（Print用）
 double TripleTop = 0;                   // 三尊天井
 double TripleBottom = 0;                // 逆三尊
-int MACD_Score = 0;                     // MACDのスコア:-7~7
+int MACD_Score[10] = {};                     // MACDのスコア:-7~7
 
 struct tmp_st
 {
@@ -79,19 +80,21 @@ void TrendMACD()
         }
     }
     //MACD
-    MACD_Score = 0;
+    for(int i=0;i<10;i++){
+        MACD_Score[i] = 0;
+    }
     for(int i=0;i<7;i++){
         if(st[0][i].MACD_Sig1[0] > 0){    
-            MACD_Score--;
+            MACD_Score[i]++;
         }
         else if(st[0][i].MACD_Sig1[0] < 0){    
-            MACD_Score++;
+            MACD_Score[i]--;
         }
         if(st[0][i].MACD_Sig2[0] > 0){    
-            MACD_Score--;
+            MACD_Score[i]++;
         }
         else if(st[0][i].MACD_Sig2[0] < 0){
-            MACD_Score++;
+            MACD_Score[i]--;
         }
     }
 }
@@ -235,30 +238,29 @@ void ManageParameter()
 }
 //逆張間隔判断
 double OpenInterval(){
-    double x = MACD_Score; //変数
-    double b = 7; //項目の合計
-    double r = NormalizeDouble(50 + BuyLots*50 + MathPow(10000,(x/b)), 3) * MarketInfo("USDJPY", MODE_TICKSIZE);
+    double r = NormalizeDouble(1000 + BuyLots*2000, 3) * MarketInfo("USDJPY", MODE_TICKSIZE);
     return r;
 }
 //決済利益判断
 double CloseInterval(){
-    double x = MACD_Score; //変数
-    double b = 7; //項目の合計
-    double r = NormalizeDouble(100 + BuyLots*50 + MathPow(10000,(x/b)), 3) * MarketInfo("USDJPY", MODE_TICKSIZE);
+    double r = NormalizeDouble(2000 + BuyLots*1000, 3) * MarketInfo("USDJPY", MODE_TICKSIZE);
     return r;
 }
 // 買建て条件・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
 void BuildOrder()
 {
-    // ポジションスタート」
+    // ポジションスタート
     if (BuyPositionMode[0] == 0)
     {
-        if (iOpen("USDJPY", PERIOD_M1, 1) > iClose("USDJPY", PERIOD_M1, 1)
-        && (iClose("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) 
-        + iHigh("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1))
-        < (iOpen("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1))
+        if (//一つ前が下足
+        iOpen("USDJPY", PERIOD_M1, 1) > iClose("USDJPY", PERIOD_M1, 1)
+        //ヒゲよりも実体のほうが大きい
+        && (iClose("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) + iHigh("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1)) < (iOpen("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1))
+        //一つ前よりも価格が低い
         && iClose("USDJPY", PERIOD_M1, 0) < iClose("USDJPY", PERIOD_M1, 1)
-        && MACD_Score < -3)
+        //MACDが上方向
+        //&& MACD_Score < 0
+        )
         {
             BuildNumber = 1;
         }
@@ -268,13 +270,17 @@ void BuildOrder()
         //順張チャージ照査
     
         //逆張チャージ照査
-        if (iClose("USDJPY", PERIOD_M1, 0) < BuyContPrice - OpenInterval()
+        if (//前ポジションとのインターバル確保
+        iClose("USDJPY", PERIOD_M1, 0) < BuyContPrice - OpenInterval()
+        //一つ前が下足
         && iOpen("USDJPY", PERIOD_M1, 1) > iClose("USDJPY", PERIOD_M1, 1)
-        && (iClose("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) 
-        + iHigh("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1))
-        < (iOpen("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1))
+        //一つ前がヒゲよりも実体のほうが大きい
+        && (iClose("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) + iHigh("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1)) < (iOpen("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1))
+        //一つ前よりも価格が低い
         && iClose("USDJPY", PERIOD_M1, 0) < iClose("USDJPY", PERIOD_M1, 1)
-        && MACD_Score < -3)
+        //MACDが上方向
+        //&& MACD_Score < 0
+        )
         {
             BuildNumber = 1;
         }
@@ -287,25 +293,33 @@ void CloseOrder()
     if (BuyPositionMode[0] == -1)
     {
         // 最小買閉照査
-        if (BuyContPriceProfit > CloseInterval()
+        if (//インターバル以上の利益
+        BuyContPriceProfit > CloseInterval()
+        //一つ前が上足
         && iOpen("USDJPY", PERIOD_M1, 1) < iClose("USDJPY", PERIOD_M1, 1)
-        && (iOpen("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) 
-        + iHigh("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1))
-        < (iClose("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1))
+        //一つ前がヒゲよりも実体が大きい
+        && (iOpen("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) + iHigh("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1)) < (iClose("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1))
+        //一つ前よりも価格が高い
         && iClose("USDJPY", PERIOD_M1, 0) > iClose("USDJPY", PERIOD_M1, 1)
-        && MACD_Score > 0)
+        //MACDが下方向
+        //&& MACD_Score > 0
+        )
         {
             CloseNumber = -1;
             ProfitPot += BuyContPriceProfit;
         }
         // 全買閉照査
-        if (BuyProfit + ProfitPot > 2*CloseInterval()
+        if (//インターバル以上の利益
+        BuyProfit + ProfitPot > 2*CloseInterval()
+        //一つ前が上足
         && iOpen("USDJPY", PERIOD_M1, 1) < iClose("USDJPY", PERIOD_M1, 1)
-        && (iOpen("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) 
-        + iHigh("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1))
-        < (iClose("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1))
+        //一つ前がヒゲよりも実体が大きい
+        && (iOpen("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) + iHigh("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1)) < (iClose("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1))
+        //一つ前よりも価格が高い
         && iClose("USDJPY", PERIOD_M1, 0) > iClose("USDJPY", PERIOD_M1, 1)
-        && MACD_Score > 0)
+        //MACDが下方向
+        //&& MACD_Score > 0
+        )
         {
             CloseNumber = -2;
             ProfitPot = 0;
