@@ -28,7 +28,7 @@ double BuyProfit = 0;                   // 買いポジション利益
 double MaxBuyLots = 0;                  // 最大の同時ポジション数（Print用）
 double TripleTop = 0;                   // 三尊天井
 double TripleBottom = 0;                // 逆三尊
-int MACD_Score[10] = {};                     // MACDのスコア:-7~7
+int MACD_Score = 0;                // MACDのスコア:-7~7
 
 struct tmp_st
 {
@@ -61,12 +61,13 @@ void TrendMACD()
         {
             for (int k = 0; k < 19; k++) //バー
             {
+                Print(1+BuyLots*BuyLots);
                 // MACD
-                st[i][j].MACD1[k] = iMACD(Currency[i], Period[j], 5, 20, 3, PRICE_CLOSE, 0, k);
-                st[i][j].MACD2[k] = iMACD(Currency[i], Period[j], 20, 40, 3, PRICE_CLOSE, 0, k);
+                st[i][j].MACD1[k] = iMACD(Currency[i], Period[j], (1+BuyLots*BuyLots)*5, (1+BuyLots*BuyLots)*20, 3, PRICE_CLOSE, 0, k);
+                st[i][j].MACD2[k] = iMACD(Currency[i], Period[j], (1+BuyLots*BuyLots)*20, (1+BuyLots*BuyLots)*40, 3, PRICE_CLOSE, 0, k);
                 // シグナル（MACD移動平均線）
-                st[i][j].Sig1[k] = iMACD(Currency[i], Period[j], 5, 20, 3, PRICE_CLOSE, 1, k);
-                st[i][j].Sig2[k] = iMACD(Currency[i], Period[j], 20, 40, 3, PRICE_CLOSE, 1, k);
+                st[i][j].Sig1[k] = iMACD(Currency[i], Period[j], (1+BuyLots*BuyLots)*5, (1+BuyLots*BuyLots)*20, 3, PRICE_CLOSE, 1, k);
+                st[i][j].Sig2[k] = iMACD(Currency[i], Period[j], (1+BuyLots*BuyLots)*20, (1+BuyLots*BuyLots)*40, 3, PRICE_CLOSE, 1, k);
                 // MACDとシグナル関係
                 st[i][j].MACD_Sig1[k] = st[i][j].MACD1[k] - st[i][j].Sig1[k];
                 st[i][j].MACD_Sig2[k] = st[i][j].MACD2[k] - st[i][j].Sig2[k];
@@ -81,20 +82,20 @@ void TrendMACD()
     }
     //MACD
     for(int i=0;i<10;i++){
-        MACD_Score[i] = 0;
+        MACD_Score = 0;
     }
     for(int i=0;i<7;i++){
         if(st[0][i].MACD_Sig1[0] > 0){    
-            MACD_Score[i]++;
+            MACD_Score++;
         }
         else if(st[0][i].MACD_Sig1[0] < 0){    
-            MACD_Score[i]--;
+            MACD_Score--;
         }
         if(st[0][i].MACD_Sig2[0] > 0){    
-            MACD_Score[i]++;
+            MACD_Score++;
         }
         else if(st[0][i].MACD_Sig2[0] < 0){
-            MACD_Score[i]--;
+            MACD_Score--;
         }
     }
 }
@@ -197,7 +198,7 @@ void Arrow()
 // 表示
 void PrintSet()
 {
-    Print("MaxBuyLots: ", MaxBuyLots,"    BuyLots: ", BuyLots,"    PositionInterval: ",NormalizeDouble(OpenInterval(), 2),"    NowInterval: ", NormalizeDouble(BuyContPrice - iClose("USDJPY", PERIOD_M1, 0), 2));
+    Print("MaxBuyLots: ", MaxBuyLots,"    BuyLots: ", BuyLots,"    PositionInterval: ",NormalizeDouble(OpenInterval(), 2),"    NowInterval: ", NormalizeDouble(BuyContPrice - iClose("USDJPY", PERIOD_M1, 0), 2), "    MACD_Score: ",MACD_Score);
 }
 // ポジション&利益管理
 void ManageParameter()
@@ -214,7 +215,7 @@ void ManageParameter()
             break;
         if (OrderType() == OP_BUY)
         {
-            BuyLots += OrderLots();
+            BuyLots += 100*OrderLots();
             BuyProfit += OrderProfit();
         }
         if(MaxBuyLots < BuyLots){MaxBuyLots = BuyLots;}
@@ -238,12 +239,12 @@ void ManageParameter()
 }
 //逆張間隔判断
 double OpenInterval(){
-    double r = NormalizeDouble(1000 + BuyLots*2000, 3) * MarketInfo("USDJPY", MODE_TICKSIZE);
+    double r = NormalizeDouble(100 + BuyLots*100, 3) * MarketInfo("USDJPY", MODE_TICKSIZE);
     return r;
 }
 //決済利益判断
 double CloseInterval(){
-    double r = NormalizeDouble(2000 + BuyLots*1000, 3) * MarketInfo("USDJPY", MODE_TICKSIZE);
+    double r = NormalizeDouble(100 + BuyLots*100, 3) * MarketInfo("USDJPY", MODE_TICKSIZE);
     return r;
 }
 // 買建て条件・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
@@ -257,9 +258,9 @@ void BuildOrder()
         //ヒゲよりも実体のほうが大きい
         && (iClose("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) + iHigh("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1)) < (iOpen("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1))
         //一つ前よりも価格が低い
-        && iClose("USDJPY", PERIOD_M1, 0) < iClose("USDJPY", PERIOD_M1, 1)
+        && iClose("USDJPY", PERIOD_M1, 0) < iLow("USDJPY", PERIOD_M1, 1)
         //MACDが上方向
-        //&& MACD_Score < 0
+        && MACD_Score > 0
         )
         {
             BuildNumber = 1;
@@ -277,9 +278,9 @@ void BuildOrder()
         //一つ前がヒゲよりも実体のほうが大きい
         && (iClose("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) + iHigh("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1)) < (iOpen("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1))
         //一つ前よりも価格が低い
-        && iClose("USDJPY", PERIOD_M1, 0) < iClose("USDJPY", PERIOD_M1, 1)
+        && iClose("USDJPY", PERIOD_M1, 0) < iLow("USDJPY", PERIOD_M1, 1)
         //MACDが上方向
-        //&& MACD_Score < 0
+        && MACD_Score > 0
         )
         {
             BuildNumber = 1;
@@ -300,9 +301,9 @@ void CloseOrder()
         //一つ前がヒゲよりも実体が大きい
         && (iOpen("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) + iHigh("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1)) < (iClose("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1))
         //一つ前よりも価格が高い
-        && iClose("USDJPY", PERIOD_M1, 0) > iClose("USDJPY", PERIOD_M1, 1)
+        && iClose("USDJPY", PERIOD_M1, 0) > iHigh("USDJPY", PERIOD_M1, 1)
         //MACDが下方向
-        //&& MACD_Score > 0
+        && MACD_Score < 0
         )
         {
             CloseNumber = -1;
@@ -316,9 +317,9 @@ void CloseOrder()
         //一つ前がヒゲよりも実体が大きい
         && (iOpen("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) + iHigh("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1)) < (iClose("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1))
         //一つ前よりも価格が高い
-        && iClose("USDJPY", PERIOD_M1, 0) > iClose("USDJPY", PERIOD_M1, 1)
+        && iClose("USDJPY", PERIOD_M1, 0) > iHigh("USDJPY", PERIOD_M1, 1)
         //MACDが下方向
-        //&& MACD_Score > 0
+        //&& MACD_Score < 0
         )
         {
             CloseNumber = -2;
@@ -367,9 +368,9 @@ void OnTick()
 {
     // 下準備
     // Arrow();
-    TrendMACD();
     TripleMountain();
     ManageParameter();
+    TrendMACD();
     PrintSet();
 
     // 条件照査
