@@ -32,6 +32,8 @@ double MaxBuyLots = 0;                  // 最大の同時ポジション数（P
 double TripleTop = 0;                   // 三尊天井
 double TripleBottom = 0;                // 逆三尊
 int MACD_Score = 0;                // MACDのスコア:-7~7
+double BuyOpenTime = 0;                 // 買建玉日時
+double CurrentTime = 0;                 // 現在日時
 
 struct tmp_st
 {
@@ -247,7 +249,7 @@ double OpenInterval(){
 }
 //決済利益判断
 double CloseInterval(){
-    double r = NormalizeDouble(100 + BuyLots*100, 3) * MarketInfo("USDJPY", MODE_TICKSIZE);
+    double r = NormalizeDouble(100 + BuyLots*100*(1+2/(MathExp(0.1*((CurrentTime - BuyOpenTime) -3600))+1)), 3) * MarketInfo("USDJPY", MODE_TICKSIZE);
     return r;
 }
 // 買建て条件・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
