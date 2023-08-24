@@ -20,10 +20,10 @@ int BuildNumber = 0;                    // 新建オーダー数（プラス数�
 int CloseNumber = 0;                    // 建閉オーダー数（プラス数で買い、マイナス数で売り）
 double BuyLowestPrice = 1000;           // 逆張買中の最小価格
 double BuyLowestPriceProfit = 0;        // 逆張買中の最小価格の利益
-int BuyLowestPriceTicket = 0;           // 逆張買中の最小価格のチケット番号
+double BuyLowestPriceTicket = 0;           // 逆張買中の最小価格のチケット番号
 double BuyHighestPrice = 0;             // 逆張買中の最大価格
 double BuyHighestPriceProfit = 0;       // 逆張買中の最大価格の利益
-int BuyHighestPriceTicket = 0;          // 逆張買中の最大価格のチケット番号
+double BuyHighestPriceTicket = 0;          // 逆張買中の最大価格のチケット番号
 double ProfitPot = 0;                   // 最小ポジション取引の累積利益
 int BuyPositionMode[10] = {};           // 買ポジションの状況（0ポジションなし/-1逆）
 double BuyLots = 0;                     // 買いポジション数
@@ -265,7 +265,9 @@ void BuildOrder()
         //一つ前よりも価格が低い
         && iClose("USDJPY", PERIOD_M1, 0) < iLow("USDJPY", PERIOD_M1, 1)
         //MACDが上方向
-        && MACD_Score > 0
+        //&& MACD_Score > 0
+        //短期MACDが下方向
+        //&& st[0][0].MACD_Sig1[0] < 0 && st[0][0].MACD_Sig2[0] < 0 
         )
         {
             BuildNumber = 1;
@@ -285,7 +287,9 @@ void BuildOrder()
         //一つ前よりも価格が低い
         && iClose("USDJPY", PERIOD_M1, 0) < iLow("USDJPY", PERIOD_M1, 1)
         //MACDが上方向
-        && MACD_Score > 0
+        //&& MACD_Score > 0
+        //短期MACDが下方向
+        //&& st[0][0].MACD_Sig1[0] < 0 && st[0][0].MACD_Sig2[0] < 0 
         )
         {
             BuildNumber = 1;
@@ -297,7 +301,7 @@ void BuildOrder()
 void CloseOrder()
 {if (BuyPositionMode[0] == -1)
     {
-        // 最小買閉照査
+        // 最大小ペア買閉照査
         if (//インターバル以上の利益
         BuyLowestPriceProfit + BuyHighestPriceProfit > CloseInterval()
         //一つ前が上足
@@ -307,11 +311,31 @@ void CloseOrder()
         //一つ前よりも価格が高い
         && iClose("USDJPY", PERIOD_M1, 0) > iHigh("USDJPY", PERIOD_M1, 1)
         //MACDが下方向
-        && MACD_Score < 0
+        //&& MACD_Score < 0
+        //短期MACDが上方向
+        //&& st[0][0].MACD_Sig1[0] > 0 && st[0][0].MACD_Sig2[0] > 0 
         )
         {
             CloseNumber = -1;
-            ProfitPot += BuyLowestPriceProfit + BuyHighestPriceProfit;
+        }
+        // 最小単独買閉照査
+        if(//1時間経過後
+        CurrentTime - BuyOpenTime > 3600 
+        //インターバル以上の利益
+        && BuyLowestPriceProfit > CloseInterval()
+        //一つ前が上足
+        && iOpen("USDJPY", PERIOD_M1, 1) < iClose("USDJPY", PERIOD_M1, 1)
+        //一つ前がヒゲよりも実体が大きい
+        && (iOpen("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) + iHigh("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1)) < (iClose("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1))
+        //一つ前よりも価格が高い
+        && iClose("USDJPY", PERIOD_M1, 0) > iHigh("USDJPY", PERIOD_M1, 1)
+        //MACDが下方向
+        //&& MACD_Score < 0
+        //短期MACDが上方向
+        //&& st[0][0].MACD_Sig1[0] > 0 && st[0][0].MACD_Sig2[0] > 0 
+        )
+        {
+            CloseNumber = -2;
         }
         // 全買閉照査
         if (//インターバル以上の利益
@@ -324,9 +348,11 @@ void CloseOrder()
         && iClose("USDJPY", PERIOD_M1, 0) > iHigh("USDJPY", PERIOD_M1, 1)
         //MACDが下方向
         //&& MACD_Score < 0
+        //短期MACDが下方向
+        //&& st[0][0].MACD_Sig1[0] < 0 && st[0][0].MACD_Sig2[0] < 0 
         )
         {
-            CloseNumber = -2;
+            CloseNumber = -3;
             ProfitPot = 0;
         }
     }
@@ -352,15 +378,31 @@ void TradingExecution()
         }
     }
     BuildNumber = 0;
-    // 最小ロング閉じ
+    // 最大小ペアロング閉じ
     if(CloseNumber == -1){
-        OrderSelect(BuyLowestPriceTicket, SELECT_BY_TICKET, MODE_TRADES);
-        bool Closed = OrderClose(OrderTicket(), 1, OrderClosePrice(), 3, clrNONE);
-        OrderSelect(BuyHighestPriceTicket, SELECT_BY_TICKET, MODE_TRADES);
-        Closed = OrderClose(OrderTicket(), 1, OrderClosePrice(), 3, clrNONE);
+        for (int i = 0; i < OrdersTotal(); i++){
+            if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES) == false)
+                break;
+            else if(OrderTicket() == BuyLowestPriceTicket){
+                bool Closed = OrderClose(OrderTicket(), OrderLots(), OrderClosePrice(), 3, clrNONE);
+            }
+            else if(OrderTicket() == BuyHighestPriceTicket){
+                bool Closed = OrderClose(OrderTicket(), OrderLots(), OrderClosePrice(), 3, clrNONE);
+            }
+        }
+    }
+    // 最小単独ロング閉じ
+    if(CloseNumber == -2){
+        for (int i = 0; i < OrdersTotal(); i++){
+            if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES) == false)
+                break;
+            else if(OrderTicket() == BuyLowestPriceTicket){
+                bool Closed = OrderClose(OrderTicket(), OrderLots(), OrderClosePrice(), 3, clrNONE);
+            }
+        }
     }
     // 全ロング閉じ
-    if(CloseNumber == -2){
+    if(CloseNumber == -3){
         for (int i = 0; i < OrdersTotal(); i++){
             if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES) == false)
                 break;
