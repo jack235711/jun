@@ -20,10 +20,10 @@ int BuildNumber = 0;                    // 新建オーダー数（プラス数�
 int CloseNumber = 0;                    // 建閉オーダー数（プラス数で買い、マイナス数で売り）
 double BuyLowestPrice = 1000;           // 逆張買中の最小価格
 double BuyLowestPriceProfit = 0;        // 逆張買中の最小価格の利益
-double BuyLowestPriceTicket = 0;           // 逆張買中の最小価格のチケット番号
+double BuyLowestPriceTicket = 0;        // 逆張買中の最小価格のチケット番号
 double BuyHighestPrice = 0;             // 逆張買中の最大価格
 double BuyHighestPriceProfit = 0;       // 逆張買中の最大価格の利益
-double BuyHighestPriceTicket = 0;          // 逆張買中の最大価格のチケット番号
+double BuyHighestPriceTicket = 0;       // 逆張買中の最大価格のチケット番号
 double ProfitPot = 0;                   // 最小ポジション取引の累積利益
 int BuyPositionMode[10] = {};           // 買ポジションの状況（0ポジションなし/-1逆）
 double BuyLots = 0;                     // 買いポジション数
@@ -196,7 +196,7 @@ void Arrow()
 // 表示
 void PrintSet()
 {
-    Print("MaxBuyLots: ", MaxBuyLots,"    BuyLots: ", BuyLots,"    PositionInterval: ",NormalizeDouble(OpenInterval(), 2),"    NowInterval: ", NormalizeDouble(BuyLowestPrice - iClose("USDJPY", PERIOD_M1, 0), 2), "    MACD_Score: ",MACD_Score);
+    //Print("MaxBuyLots: ", MaxBuyLots,"    BuyLots: ", BuyLots, "    ProfitPot: ",ProfitPot,"       CurrentTime - BuyOpenTime:  ", CurrentTime - BuyOpenTime, "     CloseInterval:   ",CloseInterval());
 }
 // ポジション&利益管理
 void ManageParameter()
@@ -205,7 +205,12 @@ void ManageParameter()
     BuyLots = 0;
     BuyProfit = 0;
     BuyLowestPrice = 10000;
+    BuyLowestPriceTicket = 0;
+    BuyLowestPriceProfit = 0;
     BuyHighestPrice = 0;
+    BuyOpenTime = 0;
+    CurrentTime = TimeCurrent();
+
 
     // 建玉数、利益管理
     for (int i = 0; i < OrdersTotal(); i++)
@@ -223,8 +228,9 @@ void ManageParameter()
             BuyLowestPrice = OrderOpenPrice();
             BuyLowestPriceTicket = OrderTicket();
             BuyLowestPriceProfit = OrderProfit();
+            BuyOpenTime = OrderOpenTime();            
         }
-        else if(BuyHighestPrice < OrderOpenPrice())
+        if(BuyHighestPrice < OrderOpenPrice())
         {
             BuyHighestPrice = OrderOpenPrice();
             BuyHighestPriceTicket = OrderTicket();
@@ -249,7 +255,7 @@ double OpenInterval(){
 }
 //決済利益判断
 double CloseInterval(){
-    double r = NormalizeDouble(100 + BuyLots*100*(1+2/(MathExp(0.1*((CurrentTime - BuyOpenTime) -3600))+1)), 3) * MarketInfo("USDJPY", MODE_TICKSIZE);
+    double r = NormalizeDouble(100 + BuyLots*100*(1/(MathExp(0.01*((CurrentTime - BuyOpenTime) -3600*24))+1)), 3) * MarketInfo("USDJPY", MODE_TICKSIZE);
     return r;
 }
 // 買建て条件・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
@@ -267,7 +273,7 @@ void BuildOrder()
         //MACDが上方向
         //&& MACD_Score > 0
         //短期MACDが下方向
-        //&& st[0][0].MACD_Sig1[0] < 0 && st[0][0].MACD_Sig2[0] < 0 
+        && st[0][0].MACD_Sig1[0] < 0 && st[0][0].MACD_Sig2[0] < 0 
         )
         {
             BuildNumber = 1;
@@ -289,7 +295,7 @@ void BuildOrder()
         //MACDが上方向
         //&& MACD_Score > 0
         //短期MACDが下方向
-        //&& st[0][0].MACD_Sig1[0] < 0 && st[0][0].MACD_Sig2[0] < 0 
+        && st[0][0].MACD_Sig1[0] < 0 && st[0][0].MACD_Sig2[0] < 0 
         )
         {
             BuildNumber = 1;
@@ -313,14 +319,15 @@ void CloseOrder()
         //MACDが下方向
         //&& MACD_Score < 0
         //短期MACDが上方向
-        //&& st[0][0].MACD_Sig1[0] > 0 && st[0][0].MACD_Sig2[0] > 0 
+        && st[0][0].MACD_Sig1[0] > 0 && st[0][0].MACD_Sig2[0] > 0 
         )
         {
-            CloseNumber = -1;
+            //CloseNumber = -1;
+            //Print("1");
         }
         // 最小単独買閉照査
-        if(//1時間経過後
-        CurrentTime - BuyOpenTime > 3600 
+        if(//時間経過
+        CurrentTime - BuyOpenTime > 3600*3
         //インターバル以上の利益
         && BuyLowestPriceProfit > CloseInterval()
         //一つ前が上足
@@ -332,28 +339,23 @@ void CloseOrder()
         //MACDが下方向
         //&& MACD_Score < 0
         //短期MACDが上方向
-        //&& st[0][0].MACD_Sig1[0] > 0 && st[0][0].MACD_Sig2[0] > 0 
+        && st[0][0].MACD_Sig1[0] > 0 && st[0][0].MACD_Sig2[0] > 0 
         )
         {
             CloseNumber = -2;
+            ProfitPot += BuyLowestPriceProfit;
+            Print("2");
         }
-        // 全買閉照査
-        if (//インターバル以上の利益
-        BuyProfit > 3*CloseInterval()
-        //一つ前が上足
-        && iOpen("USDJPY", PERIOD_M1, 1) < iClose("USDJPY", PERIOD_M1, 1)
-        //一つ前がヒゲよりも実体が大きい
-        && (iOpen("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) + iHigh("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1)) < (iClose("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1))
-        //一つ前よりも価格が高い
-        && iClose("USDJPY", PERIOD_M1, 0) > iHigh("USDJPY", PERIOD_M1, 1)
-        //MACDが下方向
-        //&& MACD_Score < 0
-        //短期MACDが下方向
-        //&& st[0][0].MACD_Sig1[0] < 0 && st[0][0].MACD_Sig2[0] < 0 
+        //最大単独買閉照査
+        if(//累積利益が基準以上
+        ProfitPot*0.1 + BuyHighestPriceProfit > 0
+        //ポジション数が基準以上
+        && BuyLots > 3        
         )
         {
             CloseNumber = -3;
-            ProfitPot = 0;
+            ProfitPot += BuyHighestPriceProfit - 3*CloseInterval();
+            Print("3");
         }
     }
 }
@@ -363,8 +365,7 @@ void TradingExecution()
 {
     int Ticket = -1;
     // ロング建て
-    if (BuildNumber > 0)
-    {
+    if (BuildNumber > 0){
         for (int i = 0; i < BuildNumber; i++)
         {
             while (Ticket < 0)
@@ -392,7 +393,7 @@ void TradingExecution()
         }
     }
     // 最小単独ロング閉じ
-    if(CloseNumber == -2){
+    else if(CloseNumber == -2){
         for (int i = 0; i < OrdersTotal(); i++){
             if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES) == false)
                 break;
@@ -401,12 +402,14 @@ void TradingExecution()
             }
         }
     }
-    // 全ロング閉じ
-    if(CloseNumber == -3){
+    // 最大単独ロング閉じ
+    else if(CloseNumber == -3){
         for (int i = 0; i < OrdersTotal(); i++){
             if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES) == false)
                 break;
-            bool Closed = OrderClose(OrderTicket(), OrderLots(), OrderClosePrice(), 3, clrNONE);
+            else if(OrderTicket() == BuyHighestPriceTicket){
+                bool Closed = OrderClose(OrderTicket(), OrderLots(), OrderClosePrice(), 3, clrNONE);
+            }
         }
     }
     CloseNumber = 0;
@@ -419,7 +422,7 @@ void OnTick()
 {
     // 下準備
     // Arrow();
-    TripleMountain();
+    // TripleMountain();
     ManageParameter();
     TrendMACD();
     PrintSet();
