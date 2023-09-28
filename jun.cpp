@@ -34,6 +34,7 @@ double TripleBottom = 0;                // 逆三尊
 int MACD_Score = 0;                // MACDのスコア:-7~7
 double BuyOpenTime = 0;                 // 買建玉日時
 double CurrentTime = 0;                 // 現在日時
+double hoge = 0;
 
 struct tmp_st
 {
@@ -46,14 +47,8 @@ struct tmp_st
     // MACDとシグナルの位置関係
     double MACD_Sig1[20];
     double MACD_Sig2[20];
-    // MACDの傾き
-    double MACD_Trend1[20];
-    double MACD_Trend2[20];
-    // MACDとシグナルの位置関係の傾き
-    double MACD_SigTrend1[20];
-    double MACD_SigTrend2[20];
-    // トレンドの長さ
-    int TrendLength;
+    // MACDとMACDの関係
+    double MACD_1_2[20];
 };
 tmp_st st[10][10];
 // トレンド判断w/MACD
@@ -75,6 +70,8 @@ void TrendMACD()
                 // MACDとシグナル関係
                 st[i][j].MACD_Sig1[k] = st[i][j].MACD1[k] - st[i][j].Sig1[k];
                 st[i][j].MACD_Sig2[k] = st[i][j].MACD2[k] - st[i][j].Sig2[k];
+                // MACD[1]とMACD[2]関係
+                st[i][j].MACD_1_2[k] = st[i][j].MACD1[k] - st[i][j].MACD2[k];
             }
         }
     }
@@ -196,7 +193,7 @@ void Arrow()
 // 表示
 void PrintSet()
 {
-    //Print("MaxBuyLots: ", MaxBuyLots,"    BuyLots: ", BuyLots, "    ProfitPot: ",ProfitPot,"       CurrentTime - BuyOpenTime:  ", CurrentTime - BuyOpenTime, "     CloseInterval:   ",CloseInterval());
+    Print("MaxBuyLots: ", MaxBuyLots,"    BuyLots: ", BuyLots, "    ProfitPot: ",ProfitPot,"       CurrentTime - BuyOpenTime:  ", CurrentTime - BuyOpenTime, "     CloseInterval:   ",CloseInterval());
 }
 // ポジション&利益管理
 void ManageParameter()
@@ -237,6 +234,7 @@ void ManageParameter()
             BuyHighestPriceProfit = OrderProfit();
         }
     }
+
     
     // ポジションのモード管理
     if (BuyLots == 0)
@@ -250,12 +248,22 @@ void ManageParameter()
 }
 //逆張間隔判断
 double OpenInterval(){
-    double r = NormalizeDouble(100 + BuyLots*100, 3) * MarketInfo("USDJPY", MODE_TICKSIZE);
+    hoge = 0;
+    for(int i=0;i<8;i++){
+        hoge += Period[i] * st[0][i].MACD_1_2[0];
+    }
+    if(hoge < 0){hoge = 0;}
+    double r = NormalizeDouble(100 - hoge + BuyLots*100, 3) * MarketInfo("USDJPY", MODE_TICKSIZE);
     return r;
 }
 //決済利益判断
 double CloseInterval(){
-    double r = NormalizeDouble(100 + BuyLots*100*(1/(MathExp(0.01*((CurrentTime - BuyOpenTime) -3600*24))+1)), 3) * MarketInfo("USDJPY", MODE_TICKSIZE);
+    hoge = 0;
+    for(int i=0;i<8;i++){
+        hoge += Period[i] * st[0][i].MACD_1_2[0];
+    }
+    if(hoge < 0){hoge = 0;}
+    double r = NormalizeDouble(100 + hoge + BuyLots*100*(1/(MathExp(0.01*((CurrentTime - BuyOpenTime) -3600*24))+1)), 3) * MarketInfo("USDJPY", MODE_TICKSIZE);
     return r;
 }
 // 買建て条件・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
