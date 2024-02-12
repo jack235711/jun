@@ -177,10 +177,7 @@ double OpenInterval(){
         }
     }
     //建玉数
-    c += st[0][0].Sigma * BuyLots * 10;
-    if(c < st[0][0].Sigma){
-        c = st[0][0].Sigma;
-    }
+    c += st[0][0].Sigma * 10 * BuyLots;
     //Print((a+b+c)/st[0][0].Sigma, " | ", a+b+c," = ",a," + ",b," + ", c);
     return a+b+c;
 }
@@ -203,8 +200,8 @@ double CloseInterval(){
             r += st[0][0].Sigma * 0.1;
         }
     }
-    if(r < st[0][0].Sigma){
-        r = st[0][0].Sigma;
+    if(r < st[0][0].Sigma * 10){
+        r = st[0][0].Sigma * 10;
     }
     return r;
 }
