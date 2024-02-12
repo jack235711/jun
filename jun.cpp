@@ -15,7 +15,7 @@
 //逆張りを支えるMAを1分足の期間を延ばしてポジションが増えた時の上位のMAも表現する
 // 変数の宣言
 string Currency[10] = {"USDJPY"};
-int Period[10] = {1, 5, 15, 30, 60, 240, 1440};
+int Period[10] = {1, 5, 15, 30, 60, 240, 1440, 10080, 43200};
 int BuildNumber = 0;                    // 新建オーダー数（プラス数で買い、マイナス数で売り）
 int CloseNumber = 0;                    // 建閉オーダー数（プラス数で買い、マイナス数で売り）
 int BuyPositionMode[10] = {};           // 買ポジションの状況（0ポジションなし/-1逆）
@@ -55,7 +55,7 @@ void TrendMACD()
     // 判断材料算出
     for (int i = 0; i < 1; i++) //通貨
     {
-        for (int j = 0; j < 7; j++) //時間軸
+        for (int j = 0; j < 9; j++) //時間軸
         {
             // MACD
             st[i][j].MACD1 = iMACD(Currency[i], Period[j], (1+BuyLots*BuyLots)*5, (1+BuyLots*BuyLots)*20, 3, PRICE_CLOSE, MODE_MAIN, 0);
@@ -72,7 +72,7 @@ void TrendMACD()
             st[i][j].Band_Main = iBands(Currency[i], Period[j], 20, 0, 0, PRICE_CLOSE, MODE_MAIN, 0);
             st[i][j].Band_Upper = iBands(Currency[i], Period[j], 20, 1, 0, PRICE_CLOSE, MODE_UPPER, 0);
             st[i][j].Sigma = st[i][j].Band_Upper - st[i][j].Band_Main; 
-            st[i][j].Band_Rank = ((iClose("USDJPY", PERIOD_M1, 1) - st[i][j].Band_Main)) / st[i][j].Sigma;
+            st[i][j].Band_Rank = (MarketInfo("USDJPY",MODE_BID)- st[i][j].Band_Main) / st[i][j].Sigma;
         }
     }
 }
@@ -109,7 +109,7 @@ void Arrow()
 // 表示
 void PrintSet()
 { 
-    Print((iClose("USDJPY", PERIOD_M1, 1) - BuyAverage - MarketInfo("USDJPY",MODE_SPREAD)/1000) * BuyLots, " = ", BuyProfit, " > ",CloseInterval() * BuyLots);
+    Print((MarketInfo("USDJPY",MODE_BID) - BuyAverage) * BuyLots, " = ", BuyProfit, " > ",CloseInterval() * BuyLots);
     //Print("MaxBuyLots: ", MaxBuyLots,"    BuyLots: ", BuyLots,  "     CloseInterval:   ",CloseInterval(), "     OpenInterval:   ",OpenInterval());
 }
 // ポジション&利益管理
@@ -130,7 +130,7 @@ void ManageParameter()
         if (OrderType() == OP_BUY)
         {
             BuyLots += 100*OrderLots();
-            BuyProfit += iClose("USDJPY", PERIOD_M1, 1) - OrderOpenPrice() - MarketInfo("USDJPY",MODE_SPREAD)/1000;
+            BuyProfit += MarketInfo("USDJPY",MODE_BID) - OrderOpenPrice();
             BuyAverage += OrderOpenPrice();
         }
         if(MaxBuyLots < BuyLots){MaxBuyLots = BuyLots;}
@@ -138,7 +138,7 @@ void ManageParameter()
         {
             BuyLowestPrice = OrderOpenPrice();
             BuyLowestPriceTicket = OrderTicket();
-            BuyLowestPriceProfit = iClose("USDJPY", PERIOD_M1, 1) - OrderOpenPrice() - MarketInfo("USDJPY",MODE_SPREAD)/1000;
+            BuyLowestPriceProfit = MarketInfo("USDJPY",MODE_BID) - OrderOpenPrice();
         }
     }
     if(BuyLots != 0){
@@ -161,14 +161,14 @@ double OpenInterval(){
     double r = 0;
     double a = 0; double b=0; double c=0;
     //ボリンジャーバンド
-    for(int i=0;i<8;i++){
+    for(int i=0;i<9;i++){
         if(st[0][i].Band_Rank > 0){
             st[0][i].Band_Rank = 0;
         }
         a += st[0][0].Sigma * st[0][i].Band_Rank * (-1);
     }
     //MACD
-    for(int j=0;j<7;j++){
+    for(int j=0;j<9;j++){
         if(st[0][j].MACD_Sig1 < 0){
             b += st[0][0].Sigma * 0.1;
         }
@@ -188,14 +188,14 @@ double OpenInterval(){
 double CloseInterval(){
     double r = 0;
     //ボリンジャーバンド
-    for(int i=0;i<7;i++){
+    for(int i=0;i<9;i++){
         if(st[0][i].Band_Rank < 0){
             st[0][i].Band_Rank = 0;
         }
         r += st[0][0].Sigma * st[0][i].Band_Rank;
     }
     //MACD
-    for(int j=0;j<7;j++){
+    for(int j=0;j<9;j++){
         if(st[0][j].MACD_Sig1 > 0){
             r += st[0][0].Sigma * 0.1;
         }
@@ -231,7 +231,7 @@ void BuildOrder()
     {
         //逆張チャージ照査
         if (//前ポジションとのインターバル確保
-        iClose("USDJPY", PERIOD_M1, 0) < BuyLowestPrice - OpenInterval()
+        MarketInfo("USDJPY",MODE_ASK) < BuyLowestPrice - OpenInterval()
         //一つ前が下足
         && iOpen("USDJPY", PERIOD_M1, 1) > iClose("USDJPY", PERIOD_M1, 1)
         //一つ前がヒゲよりも実体のほうが大きい
@@ -269,7 +269,7 @@ void CloseOrder()
         }
         // 単独買閉照査
         else if(//長期MACDが下方向
-        (st[0][5].MACD_Sig1 < 0 || st[0][6].MACD_Sig1 < 0 )
+        BuyLots > 3
         //インターバル以上の利益
         && BuyLowestPriceProfit > CloseInterval() * BuyLots
         //一つ前が上足
