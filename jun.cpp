@@ -109,7 +109,6 @@ void Arrow()
 // 表示
 void PrintSet()
 { 
-    Print((MarketInfo("USDJPY",MODE_BID) - BuyAverage) * BuyLots, " = ", BuyProfit, " > ",CloseInterval() * BuyLots);
     //Print("MaxBuyLots: ", MaxBuyLots,"    BuyLots: ", BuyLots,  "     CloseInterval:   ",CloseInterval(), "     OpenInterval:   ",OpenInterval());
 }
 // ポジション&利益管理
@@ -165,15 +164,15 @@ double OpenInterval(){
         if(st[0][i].Band_Rank > 0){
             st[0][i].Band_Rank = 0;
         }
-        a += st[0][0].Sigma * st[0][i].Band_Rank * (-1);
+        a += st[0][i].Sigma * i * st[0][i].Band_Rank * (-1);
     }
     //MACD
-    for(int j=0;j<9;j++){
-        if(st[0][j].MACD_Sig1 < 0){
-            b += st[0][0].Sigma * 0.1;
+    for(int i=0;i<9;i++){
+        if(st[0][i].MACD_Sig1 < 0){
+            b += st[0][i].Sigma * i * st[0][i].Band_Rank * (-1);
         }
-        if(st[0][j].MACD_Sig2 < 0){
-            b += st[0][0].Sigma * 0.1;
+        if(st[0][i].MACD_Sig2 < 0){
+            b += st[0][i].Sigma * i * st[0][i].Band_Rank * (-1);
         }
     }
     //建玉数
@@ -189,15 +188,15 @@ double CloseInterval(){
         if(st[0][i].Band_Rank < 0){
             st[0][i].Band_Rank = 0;
         }
-        r += st[0][0].Sigma * st[0][i].Band_Rank;
+        r += st[0][8].Sigma * (9-i) * st[0][i].Band_Rank;
     }
     //MACD
-    for(int j=0;j<9;j++){
-        if(st[0][j].MACD_Sig1 > 0){
-            r += st[0][0].Sigma * 0.1;
+    for(int i=0;i<9;i++){
+        if(st[0][i].MACD_Sig1 > 0){
+            r += st[0][8].Sigma * (9-i) * st[0][i].Band_Rank;
         }
-        if(st[0][j].MACD_Sig2 > 0){
-            r += st[0][0].Sigma * 0.1;
+        if(st[0][i].MACD_Sig2 > 0){
+            r += st[0][8].Sigma * (9-i) * st[0][i].Band_Rank;
         }
     }
     if(r < st[0][0].Sigma * 10){
