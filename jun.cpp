@@ -11,10 +11,12 @@
 // 分割：View→Edit layout
 // コメントアウト：Ctrl+/
 //+------------------------------------------------------------------+
-//下降：2022/10/14 ~ 2023/1/13
-//上昇：2022/3/4 ~ 2022/5/6
+// 上昇：2022/8/12(133.4)~2022/10/14(148.7)
+// 下降：2022/10/14(148.7)~2023/1/13(127.8)
+// V：2022/12/16(136.7)~2023/1/13(127.8)~2023/2/24(136.4)
+// 逆V：2022/8/12(133.4)~2022/10/14(148.7)~2023/1/13(127.8)
+//+------------------------------------------------------------------+
 //・1か月1単位で$100の利益
-//逆張りを支えるMAを1分足の期間を延ばしてポジションが増えた時の上位のMAも表現する
 // 変数の宣言
 string Currency[10] = {"USDJPY"};
 int Period[10] = {1, 5, 15, 30, 60, 240, 1440, 10080, 43200};
@@ -57,7 +59,7 @@ void TrendMACD()
     // 判断材料算出
     for (int i = 0; i < 1; i++) //通貨
     {
-        for (int j = 0; j < 9; j++) //時間軸
+        for (int j = 0; j < 7; j++) //時間軸
         {
             // MACD
             st[i][j].MACD1 = iMACD(Currency[i], Period[j], (1+BuyLots*BuyLots)*5, (1+BuyLots*BuyLots)*20, 3, PRICE_CLOSE, MODE_MAIN, 0);
@@ -111,7 +113,7 @@ void Arrow()
 // 表示
 void PrintSet()
 { 
-    //Print("MaxBuyLots: ", MaxBuyLots,"    BuyLots: ", BuyLots,  "     CloseInterval:   ",CloseInterval(), "     OpenInterval:   ",OpenInterval());
+    Print("MaxBuyLots: ", MaxBuyLots,"    BuyLots: ", BuyLots,  "     CloseInterval:   ",CloseInterval(), "     OpenInterval:   ",OpenInterval());
     
 }
 // ポジション&利益管理
@@ -158,68 +160,102 @@ void ManageParameter()
         BuyPositionMode[0] = -1;
     }
 }
+//新玉判断
+double ValueTrend(){
+    double a = 0; double b=0; double c=0;
+    //0ボリンジャーバンド
+    a += st[0][0].Sigma * st[0][0].Band_Rank;
+    //0MACD
+    if(st[0][0].MACD_Sig1 > 0){
+        a += MathAbs(st[0][0].Sigma * st[0][0].Band_Rank);
+    }else{
+        a -= MathAbs(st[0][0].Sigma * st[0][0].Band_Rank);
+    }
+    if(st[0][0].MACD_Sig2 > 0){
+        a += MathAbs(st[0][0].Sigma * st[0][0].Band_Rank);
+    }else{
+        a -= MathAbs(st[0][0].Sigma * st[0][0].Band_Rank);
+    }
+    //1~9ボリンジャーバンド
+    for(int i=1;i<9;i++){
+        b += st[0][i].Sigma * st[0][i].Band_Rank;
+    }
+    //1~9MACD
+    for(int i=1;i<9;i++){
+        if(st[0][i].MACD_Sig1 > 0){
+            b += MathAbs(st[0][i].Sigma * st[0][i].Band_Rank);
+        }else{
+            b -= MathAbs(st[0][i].Sigma * st[0][i].Band_Rank);
+        }
+        if(st[0][i].MACD_Sig2 > 0){
+            b += MathAbs(st[0][i].Sigma * st[0][i].Band_Rank);
+        }else{
+            b -= MathAbs(st[0][i].Sigma * st[0][i].Band_Rank);
+        }
+    }
+    //直近過去に現在値以上の高値が存在している
+    for(int i=0;i<5;i++){
+        if(iClose("USDJPY", PERIOD_M1, 0) + 2 * st[0][0].Sigma < iHigh("USDJPY", PERIOD_M1, i)){
+            c = 1;
+        }
+        if(iClose("USDJPY", PERIOD_M1, 0) - 2 * st[0][0].Sigma > iLow("USDJPY", PERIOD_M1, i)){
+            c = -1;
+        }
+    }
+    if(a < 0 && b > 0 && c == 1){
+        return 1;
+    }else if(a > 0 && b < 0 && c == -1){
+        return -1;
+    }else{
+        return 0;
+    }
+}
 //建玉インターバル
 double OpenInterval(){
     double r = 0;
-    double a = 0; double b=0; double c=0;
-    //ボリンジャーバンド
-    for(int i=0;i<9;i++){
-        if(st[0][i].Band_Rank > 0){
-            st[0][i].Band_Rank = 0;
-        }
-        a += st[0][i].Sigma * i * MathPow(st[0][i].Band_Rank * (-1), 2);
-    }
-    //MACD
+    //ボリンジャーバンド&MACD
     for(int i=0;i<9;i++){
         if(st[0][i].MACD_Sig1 < 0){
-            b += st[0][i].Sigma * i * MathPow(st[0][i].Band_Rank * (-1), 2);
+            r += st[0][i].Sigma * MathPow(st[0][i].Band_Rank * (-1), 2);
         }
         if(st[0][i].MACD_Sig2 < 0){
-            b += st[0][i].Sigma * i * MathPow(st[0][i].Band_Rank * (-1), 2);
+            r += st[0][i].Sigma * MathPow(st[0][i].Band_Rank * (-1), 2);
         }
     }
     //建玉数
-    c += st[0][0].Sigma * 10 * BuyLots;
-    return a+b+c;
+    r += st[0][0].Sigma * MathPow(10 * BuyLots, 2);
+    return r;
 }
 //閉玉インターバル
 double CloseInterval(){
     double r = 0;
-    //ボリンジャーバンド
-    for(int i=0;i<9;i++){
-        if(st[0][i].Band_Rank < 0){
-            st[0][i].Band_Rank = 0;
-        }
-        r += st[0][i].Sigma * MathPow(i, 2) * MathPow(st[0][i].Band_Rank, 2);
-    }
-    //MACD
-    for(int i=0;i<9;i++){
+    //ボリンジャーバンド&MACD
+    for(int i=0;i<5;i++){
         if(st[0][i].MACD_Sig1 > 0){
-            r += st[0][i].Sigma * MathPow(i, 2) * MathPow(st[0][i].Band_Rank, 2);
+            r += st[0][i].Sigma * MathPow(st[0][i].Band_Rank, 2);
         }
         if(st[0][i].MACD_Sig2 > 0){
-            r += st[0][i].Sigma * MathPow(i, 2) * MathPow(st[0][i].Band_Rank, 2);
+            r += st[0][i].Sigma * MathPow(st[0][i].Band_Rank, 2);
         }
-    }
-    if(r < st[0][0].Sigma * 10){
-        r = st[0][0].Sigma * 10;
     }
     return r;
 }
 // 買建て条件・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
-void BuildOrder()
+void BuildOrder()   
 {
     // ポジションスタート
     if (BuyPositionMode[0] == 0)
     {
-        if (//一つ前が下足
-        iOpen("USDJPY", PERIOD_M1, 1) > iClose("USDJPY", PERIOD_M1, 1)
-        //ヒゲよりも実体のほうが大きい
-        && (iClose("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) + iHigh("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1)) < (iOpen("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1))
-        //一つ前よりも価格が低い
-        && iClose("USDJPY", PERIOD_M1, 0) < iLow("USDJPY", PERIOD_M1, 1)
-        //短期MACDが下方向
-        && st[0][0].MACD_Sig1 < 0 && st[0][0].MACD_Sig2 < 0 
+        if (//トレンド判断
+        ValueTrend() == 1
+        //一つ前が下足
+        // && iOpen("USDJPY", PERIOD_M1, 1) > iClose("USDJPY", PERIOD_M1, 1)
+        // //ヒゲよりも実体のほうが大きい
+        // && (iClose("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) + iHigh("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1)) < (iOpen("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1))
+        // //一つ前よりも価格が低い
+        // && iClose("USDJPY", PERIOD_M1, 0) < iLow("USDJPY", PERIOD_M1, 1)
+        // //短期MACDが下方向
+        // && st[0][0].MACD_Sig1 < 0 && st[0][0].MACD_Sig2 < 0 
         )
         {
             BuildNumber = 1;
@@ -228,16 +264,18 @@ void BuildOrder()
     else if (BuyPositionMode[0] == -1)
     {
         //逆張チャージ照査
-        if (//前ポジションとのインターバル確保
-        MarketInfo("USDJPY",MODE_ASK) < BuyLowestPrice - OpenInterval()
-        //一つ前が下足
-        && iOpen("USDJPY", PERIOD_M1, 1) > iClose("USDJPY", PERIOD_M1, 1)
-        //一つ前がヒゲよりも実体のほうが大きい
-        && (iClose("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) + iHigh("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1)) < (iOpen("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1))
-        //一つ前よりも価格が低い
-        && iClose("USDJPY", PERIOD_M1, 0) < iLow("USDJPY", PERIOD_M1, 1)
-        //短期MACDが下方向
-        && st[0][0].MACD_Sig1 < 0 && st[0][0].MACD_Sig2 < 0 
+        if (//トレンド判断
+        ValueTrend() == 1
+        //前ポジションとのインターバル確保
+        &&MarketInfo("USDJPY",MODE_ASK) < BuyLowestPrice - OpenInterval()
+        // //一つ前が下足
+        // && iOpen("USDJPY", PERIOD_M1, 1) > iClose("USDJPY", PERIOD_M1, 1)
+        // //一つ前がヒゲよりも実体のほうが大きい
+        // && (iClose("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) + iHigh("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1)) < (iOpen("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1))
+        // //一つ前よりも価格が低い
+        // && iClose("USDJPY", PERIOD_M1, 0) < iLow("USDJPY", PERIOD_M1, 1)
+        // //短期MACDが下方向
+        // && st[0][0].MACD_Sig1 < 0 && st[0][0].MACD_Sig2 < 0 
         )
         {
             BuildNumber = 1;
@@ -251,33 +289,36 @@ void CloseOrder()
     if (BuyPositionMode[0] == -1)
     {
         // 全体買閉照査
-        if (//インターバル以上の利益
-        BuyProfit > CloseInterval()
+        if (//トレンド判断
+        ValueTrend() == -1
+        &&BuyLots > 1
+        //とりあえず+の利益
+        && BuyProfit > 0.1
         //一つ前が上足
-        && iOpen("USDJPY", PERIOD_M1, 1) < iClose("USDJPY", PERIOD_M1, 1)
-        //一つ前がヒゲよりも実体が大きい
-        && (iOpen("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) + iHigh("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1)) < (iClose("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1))
-        //一つ前よりも価格が高い
-        && iClose("USDJPY", PERIOD_M1, 0) > iHigh("USDJPY", PERIOD_M1, 1)
-        //短期MACDが上方向
-        && st[0][0].MACD_Sig1 > 0 && st[0][0].MACD_Sig2 > 0 
+        // && iOpen("USDJPY", PERIOD_M1, 1) < iClose("USDJPY", PERIOD_M1, 1)
+        // //一つ前がヒゲよりも実体が大きい
+        // && (iOpen("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) + iHigh("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1)) < (iClose("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1))
+        // //一つ前よりも価格が高い
+        // && iClose("USDJPY", PERIOD_M1, 0) > iHigh("USDJPY", PERIOD_M1, 1)
+        // //BandRank > 2
+        // //&& st[0][0].Band_Rank > 1
         )
         {
             CloseNumber = -1;
         }
         // 単独買閉照査
-        else if(//長期MACDが下方向
-        BuyLots > 3
+        else if(//トレンド判断
+        ValueTrend() == -1
         //インターバル以上の利益
         && BuyLowestPriceProfit > CloseInterval()
         //一つ前が上足
-        && iOpen("USDJPY", PERIOD_M1, 1) < iClose("USDJPY", PERIOD_M1, 1)
-        //一つ前がヒゲよりも実体が大きい
-        && (iOpen("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) + iHigh("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1)) < (iClose("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1))
-        //一つ前よりも価格が高い
-        && iClose("USDJPY", PERIOD_M1, 0) > iHigh("USDJPY", PERIOD_M1, 1)
-        //短期MACDが上方向
-        && st[0][0].MACD_Sig1 > 0 && st[0][0].MACD_Sig2 > 0 
+        // && iOpen("USDJPY", PERIOD_M1, 1) < iClose("USDJPY", PERIOD_M1, 1)
+        // //一つ前がヒゲよりも実体が大きい
+        // && (iOpen("USDJPY", PERIOD_M1, 1) - iLow("USDJPY", PERIOD_M1, 1) + iHigh("USDJPY", PERIOD_M1, 1) - iClose("USDJPY", PERIOD_M1, 1)) < (iClose("USDJPY", PERIOD_M1, 1) - iOpen("USDJPY", PERIOD_M1, 1))
+        // //一つ前よりも価格が高い
+        // && iClose("USDJPY", PERIOD_M1, 0) > iHigh("USDJPY", PERIOD_M1, 1)
+        //BandRank > 2
+        //&& st[0][0].Band_Rank > 1
         )
         {
             CloseNumber = -2;
@@ -335,7 +376,7 @@ void OnTick()
     TrendMACD();
     ManageParameter();
     PrintSet();
-    Arrow();
+    //Arrow();
 
     // 条件照査
     BuildOrder();
