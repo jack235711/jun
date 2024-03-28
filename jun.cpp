@@ -231,7 +231,7 @@ double ValueTrendAdd(){
 }
 //値トレンド判断（玉閉）
 double ValueTrendClose(){
-    double c=0; double cx=0;
+    double c=0; double cx=10000;
     //直近過去に現在値以上の高値が存在している
     for(int i=2;i<100;i++){
         if(iHigh("USDJPY", PERIOD_M1, 1) < iHigh("USDJPY", PERIOD_M1, i)){
@@ -241,7 +241,7 @@ double ValueTrendClose(){
     if(c == 0){
         cx = iOpen("USDJPY", PERIOD_M1, 1) ;
     }
-    if(iClose("USDJPY", PERIOD_M1, 0) < cx){
+    if(iClose("USDJPY", PERIOD_M1, 0) > cx){
         return 1;
     }else{
         return 0;
