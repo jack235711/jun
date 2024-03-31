@@ -96,17 +96,17 @@ void Arrow()
     int z3 = x3 * y3;
     string Name3 = z3;
     static datetime time = Time[0];
-    // if (Time[0] != time)
-    // {
-    //     if(ValueTrendOpen() == 1){
-    //         ObjectCreate(0, Name1, OBJ_ARROW_DOWN, 0, Time[0], iLow("USDJPY", PERIOD_M1, 0));
-    //         ObjectSetInteger(0, Name1, OBJPROP_COLOR, Red);
-    //     }
-    // }
+    if (Time[0] != time)
+    {
+        if(ValueTrendAdd() == 1){
+            ObjectCreate(0, Name1, OBJ_ARROW_UP, 0, Time[0], iClose("USDJPY", PERIOD_M1, 0));
+            ObjectSetInteger(0, Name1, OBJPROP_COLOR, Red);
+        }
+    }
     if (Time[0] != time)
     {
         if(ValueTrendClose() == 1){
-            ObjectCreate(0, Name2, OBJ_ARROW_DOWN, 0, Time[0], iHigh("USDJPY", PERIOD_M1, 0));
+            ObjectCreate(0, Name2, OBJ_ARROW_DOWN, 0, Time[0], iOpen("USDJPY", PERIOD_M1, 0));
             ObjectSetInteger(0, Name2, OBJPROP_COLOR, Aqua);
         }
     }
@@ -164,8 +164,7 @@ void ManageParameter()
 }
 //値トレンド判断（新建）
 double ValueTrendOpen(){
-    double a = 0; double ax = 0;
-    double b = 0; double c = 0;
+    double a = 0; double b = 0; double c = 0;
     //0ボリンジャーバンド
     b += st[0][0].Sigma * st[0][0].Band_Rank;
     //0MACD
@@ -197,15 +196,14 @@ double ValueTrendOpen(){
         }
     }
     //直近過去に現在値以上の高値が存在している
-    for(int i=2;i<100;i++){
-        if(iLow("USDJPY", PERIOD_M1, 1) > iLow("USDJPY", PERIOD_M1, i)){
+    for(int i = 3; i < 4 + MathPow(10, -st[0][0].Band_Rank); i++){
+        if(iLow("USDJPY", PERIOD_M1, 2) >= iLow("USDJPY", PERIOD_M1, i)){
             a = 1;
         }
     }
-    if(a == 0){
-        ax = iOpen("USDJPY", PERIOD_M1, 1) ;
-    }
-    if(b < 0 && c > 0 && iClose("USDJPY", PERIOD_M1, 0) < ax){
+    if(a == 0 
+    && (iOpen("USDJPY", PERIOD_M1, 1) + iClose("USDJPY", PERIOD_M1, 1))/2 < iClose("USDJPY", PERIOD_M1, 0)
+    && st[0][0].Band_Rank < -1){
         return 1;
     }else{
         return 0;
@@ -213,17 +211,16 @@ double ValueTrendOpen(){
 }
 //値トレンド判断（追建）
 double ValueTrendAdd(){
-    double b=0; double bx=0;
+    double b=0;
     //直近過去に現在値以上の高値が存在している
-    for(int i=2;i<100;i++){
-        if(iLow("USDJPY", PERIOD_M1, 1) > iLow("USDJPY", PERIOD_M1, i)){
+    for(int i = 2; i < 3 + MathPow(10,-st[0][0].Band_Rank); i++){
+        if(iLow("USDJPY", PERIOD_M1, 1) >= iLow("USDJPY", PERIOD_M1, i)){
             b = 1;
         }
     }
-    if(b == 0){
-        bx = iOpen("USDJPY", PERIOD_M1, 1) ;
-    }
-    if(iClose("USDJPY", PERIOD_M1, 0) < bx){
+    if(b == 0 
+    && (iOpen("USDJPY", PERIOD_M1, 1) + iClose("USDJPY", PERIOD_M1, 1))/2 < iClose("USDJPY", PERIOD_M1, 0)
+    && st[0][0].Band_Rank < -1){
         return 1;
     }else{
         return 0;
@@ -231,17 +228,16 @@ double ValueTrendAdd(){
 }
 //値トレンド判断（玉閉）
 double ValueTrendClose(){
-    double c=0; double cx=10000;
+    double c=0;
     //直近過去に現在値以上の高値が存在している
-    for(int i=2;i<100;i++){
-        if(iHigh("USDJPY", PERIOD_M1, 1) < iHigh("USDJPY", PERIOD_M1, i)){
+    for(int i = 3; i < 4 + MathPow(10,st[0][0].Band_Rank); i++){
+        if(iHigh("USDJPY", PERIOD_M1, 2) <= iHigh("USDJPY", PERIOD_M1, i)){
             c = 1;
         }
     }
-    if(c == 0){
-        cx = iOpen("USDJPY", PERIOD_M1, 1) ;
-    }
-    if(iClose("USDJPY", PERIOD_M1, 0) > cx){
+    if(c == 0 
+    && (iOpen("USDJPY", PERIOD_M1, 1) + iClose("USDJPY", PERIOD_M1, 1))/2 > iClose("USDJPY", PERIOD_M1, 0)
+    && st[0][0].Band_Rank > 1){
         return 1;
     }else{
         return 0;
@@ -381,7 +377,7 @@ void OnTick()
     TrendMACD();
     ManageParameter();
     PrintSet();
-    //Arrow();
+    Arrow();
 
     // 条件照査
     BuildOrder();
