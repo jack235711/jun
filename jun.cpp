@@ -16,6 +16,18 @@
 // V：2022/12/16(136.7)~2023/1/13(127.8)~2023/2/24(136.4)
 // 逆V：2022/8/12(133.4)~2022/10/14(148.7)~2023/1/13(127.8)
 //+------------------------------------------------------------------+
+// 1年	31556926秒
+// 1ヶ月	2629743秒
+// 1週間	604800秒
+// 1日	86400秒
+// 1時間	3600秒
+//+------------------------------------------------------------------+
+// トレンド：長期順張り環境
+// 棘：売買ポイント←要改良
+// 難平インターバル：短期逆張り建て
+// 積立インターバル：短期順張り建て
+// 玉閉インターバル：←要戦略
+//+------------------------------------------------------------------+
 // 変数の宣言
 string Currency[10] = {"USDJPY"};
 int Period[10] = {1, 5, 15, 30, 60, 240, 1440, 10080, 43200};
@@ -25,7 +37,9 @@ int BuyPositionMode[10] = {};           // 買ポジションの状況（0ポジ
 double BuyLots = 0;                     // 買いポジション数
 double BuyProfit = 0;                   // 買いポジション利益
 double BuyAverage = 0;                  // 買いポジション平均価格
+datetime BuyOpenTime = 0;               // 買いポジションの時刻
 double BuyLowestPrice = 1000;           // 逆張買中の最小価格
+double BuyHighestPrice = 0;             // 逆張買中の最大価格
 double BuyLowestPriceProfit = 0;        // 逆張買中の最小価格の利益
 double BuyLowestPriceTicket = 0;        // 逆張買中の最小価格のチケット番号
 double MaxBuyLots = 0;                  // 最大の同時ポジション数（Print用）
@@ -80,7 +94,7 @@ void TrendMACD()
         }
     }
 }
-
+// 矢印
 void Arrow()
 {
     int x1 = MathRand();
@@ -106,12 +120,11 @@ void Arrow()
     if (Time[0] != time)
     {
         if(ValueTrendClose() == 1){
-            ObjectCreate(0, Name2, OBJ_ARROW_DOWN, 0, Time[0], iOpen("USDJPY", PERIOD_M1, 0));
+            ObjectCreate(0, Name2, OBJ_ARROW_DOWN, 0, Time[0], iClose("USDJPY", PERIOD_M1, 0));
             ObjectSetInteger(0, Name2, OBJPROP_COLOR, Aqua);
         }
     }
 }
-
 // 表示
 void PrintSet()
 { 
@@ -125,6 +138,7 @@ void ManageParameter()
     BuyLots = 0;
     BuyProfit = 0;
     BuyLowestPrice = 10000;
+    BuyHighestPrice = 0;
     BuyLowestPriceProfit = 0;
     BuyAverage = 0;
 
@@ -146,6 +160,10 @@ void ManageParameter()
             BuyLowestPriceTicket = OrderTicket();
             BuyLowestPriceProfit = MarketInfo("USDJPY",MODE_BID) - OrderOpenPrice();
         }
+        if(BuyHighestPrice < OrderOpenPrice())
+        {
+            BuyHighestPrice = OrderOpenPrice();
+        }
     }
     if(BuyLots != 0){
         BuyAverage /= BuyLots;
@@ -162,105 +180,95 @@ void ManageParameter()
         BuyPositionMode[0] = -1;
     }
 }
-//値トレンド判断（新建）
+//棘判断（新建）
 double ValueTrendOpen(){
-    double a = 0; double b = 0; double c = 0;
-    //0ボリンジャーバンド
-    b += st[0][0].Sigma * st[0][0].Band_Rank;
-    //0MACD
-    if(st[0][0].MACD_Sig1 > 0){
-        b += MathAbs(st[0][0].Sigma * st[0][0].Band_Rank);
-    }else{
-        b -= MathAbs(st[0][0].Sigma * st[0][0].Band_Rank);
-    }
-    if(st[0][0].MACD_Sig2 > 0){
-        b += MathAbs(st[0][0].Sigma * st[0][0].Band_Rank);
-    }else{
-        b -= MathAbs(st[0][0].Sigma * st[0][0].Band_Rank);
-    }
-    //1~9ボリンジャーバンド
-    for(int i=1;i<9;i++){
-        c += st[0][i].Sigma * st[0][i].Band_Rank;
-    }
-    //1~9MACD
-    for(int i=1;i<9;i++){
-        if(st[0][i].MACD_Sig1 > 0){
-            c += MathAbs(st[0][i].Sigma * st[0][i].Band_Rank);
-        }else{
-            c -= MathAbs(st[0][i].Sigma * st[0][i].Band_Rank);
-        }
-        if(st[0][i].MACD_Sig2 > 0){
-            c += MathAbs(st[0][i].Sigma * st[0][i].Band_Rank);
-        }else{
-            c -= MathAbs(st[0][i].Sigma * st[0][i].Band_Rank);
-        }
-    }
+    double a = 0;
     //直近過去に現在値以上の高値が存在している
-    for(int i = 3; i < 4 + MathPow(10, -st[0][0].Band_Rank); i++){
+    for(int i = 3; i < 10 + MathPow(10, -st[0][0].Band_Rank); i++){
         if(iLow("USDJPY", PERIOD_M1, 2) >= iLow("USDJPY", PERIOD_M1, i)){
             a = 1;
         }
     }
     if(a == 0 
-    && (iOpen("USDJPY", PERIOD_M1, 1) + iClose("USDJPY", PERIOD_M1, 1))/2 < iClose("USDJPY", PERIOD_M1, 0)
+    && (iOpen("USDJPY", PERIOD_M1, 1) + iClose("USDJPY", PERIOD_M1, 1))/2 > iClose("USDJPY", PERIOD_M1, 0)
+    && iLow("USDJPY", PERIOD_M1, 0) > iLow("USDJPY", PERIOD_M1, 1)
     && st[0][0].Band_Rank < -1){
         return 1;
     }else{
         return 0;
     }
 }
-//値トレンド判断（追建）
+//棘判断（追建）
 double ValueTrendAdd(){
     double b=0;
     //直近過去に現在値以上の高値が存在している
-    for(int i = 2; i < 3 + MathPow(10,-st[0][0].Band_Rank); i++){
+    for(int i = 2; i < 10 + MathPow(10,-st[0][0].Band_Rank); i++){
         if(iLow("USDJPY", PERIOD_M1, 1) >= iLow("USDJPY", PERIOD_M1, i)){
             b = 1;
         }
     }
     if(b == 0 
-    && (iOpen("USDJPY", PERIOD_M1, 1) + iClose("USDJPY", PERIOD_M1, 1))/2 < iClose("USDJPY", PERIOD_M1, 0)
+    && (iOpen("USDJPY", PERIOD_M1, 1) + iClose("USDJPY", PERIOD_M1, 1))/2 > iClose("USDJPY", PERIOD_M1, 0)
+    && iLow("USDJPY", PERIOD_M1, 0) > iLow("USDJPY", PERIOD_M1, 1)
     && st[0][0].Band_Rank < -1){
         return 1;
     }else{
         return 0;
     }
 }
-//値トレンド判断（玉閉）
+//棘判断（玉閉）
 double ValueTrendClose(){
     double c=0;
     //直近過去に現在値以上の高値が存在している
-    for(int i = 3; i < 4 + MathPow(10,st[0][0].Band_Rank); i++){
+    for(int i = 3; i < 100 + MathPow(10,st[0][0].Band_Rank); i++){
         if(iHigh("USDJPY", PERIOD_M1, 2) <= iHigh("USDJPY", PERIOD_M1, i)){
             c = 1;
         }
     }
     if(c == 0 
-    && (iOpen("USDJPY", PERIOD_M1, 1) + iClose("USDJPY", PERIOD_M1, 1))/2 > iClose("USDJPY", PERIOD_M1, 0)
+    && (iOpen("USDJPY", PERIOD_M1, 2) + iClose("USDJPY", PERIOD_M1, 2))/2 < iClose("USDJPY", PERIOD_M1, 0)
+    && iHigh("USDJPY", PERIOD_M1, 1) < iHigh("USDJPY", PERIOD_M1, 2)
     && st[0][0].Band_Rank > 1){
         return 1;
     }else{
         return 0;
     }
 }
-
-//建玉インターバル
+//建玉難平インターバル
 double OpenInterval(){
     double r = 0;
     //ボリンジャーバンド&MACD
     for(int i=0;i<9;i++){
-        if(st[0][i].MACD_Sig1 < 0){
-            r += st[0][i].Sigma * MathPow(st[0][i].Band_Rank * (-1), 2);
-        }
-        if(st[0][i].MACD_Sig2 < 0){
-            r += st[0][i].Sigma * MathPow(st[0][i].Band_Rank * (-1), 2);
+        if(st[0][i].Band_Rank < 0){
+            if(st[0][i].MACD_Sig1 < 0){
+                r += st[0][i].Sigma * st[0][i].Band_Rank * (-1);
+            }
+            if(st[0][i].MACD_Sig2 < 0){
+                r += st[0][i].Sigma * st[0][i].Band_Rank * (-1);
+            }
         }
     }
     //建玉数
-    r += st[0][0].Sigma * MathPow(10 * BuyLots, 2);
+    r += st[0][0].Sigma * BuyLots;
     return r;
 }
-//閉玉インターバル
+//建玉積立インターバル
+datetime OpenTimeInterval(){
+    double r = 0;
+    //ボリンジャーバンド&MACD
+    for(int i=0;i<9;i++){
+        if(st[0][i].Band_Rank < 0){
+            if(st[0][i].MACD_Sig1 < 0){
+                r += st[0][i].Sigma * st[0][i].Band_Rank * (-1);
+            }
+            if(st[0][i].MACD_Sig2 < 0){
+                r += st[0][i].Sigma * st[0][i].Band_Rank * (-1);
+            }
+        }
+    }
+    return 3600*(BuyLots + r);
+}
+//閉玉難平インターバル
 double CloseInterval(){
     double r = 0;
     //ボリンジャーバンド&MACD
@@ -277,7 +285,7 @@ double CloseInterval(){
     return r;
 }
 // 買建て条件・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
-void BuildOrder()   
+    void BuildOrder()   
 {
     // ポジションスタート
     if (BuyPositionMode[0] == 0)
@@ -289,15 +297,20 @@ void BuildOrder()
     }
     else if (BuyPositionMode[0] == -1)
     {
-        //逆張チャージ照査
+        //逆張チャージ照査　難平価格インターバル確保
         if (ValueTrendAdd() == 1
-        //前ポジションとのインターバル確保
-        && MarketInfo("USDJPY",MODE_ASK) < BuyLowestPrice - OpenInterval()
-        )
+        && MarketInfo("USDJPY",MODE_ASK) < BuyLowestPrice - OpenInterval())
         {
             BuildNumber = 1;
         }
-    }
+        //順張チャージ照査　積立時間インターバル確保
+        else if(ValueTrendAdd() == 1
+        && TimeCurrent() > BuyOpenTime + OpenTimeInterval()
+        && MarketInfo("USDJPY",MODE_BID) > BuyHighestPrice)
+        {
+            BuildNumber = 1;
+        }
+   }
 }
 
 // 買閉め条件・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
@@ -326,7 +339,6 @@ void CloseOrder()
         }
     }
 }
-
 // 売買実行
 void TradingExecution()
 {
@@ -344,6 +356,7 @@ void TradingExecution()
                 }
             }
         }
+        BuyOpenTime = TimeCurrent();
     }
     BuildNumber = 0;
     // ロング閉じ
@@ -372,6 +385,7 @@ void TradingExecution()
 int OnInit() { return (INIT_SUCCEEDED); }
 void OnDeinit() {}
 void OnTick()
+
 {
     // 下準備
     TrendMACD();
